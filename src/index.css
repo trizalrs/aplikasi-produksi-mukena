@@ -1,0 +1,48 @@
+/* src/index.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Impor font untuk struk */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
+
+.font-struk {
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* --- ATURAN CETAK FINAL YANG BENAR --- */
+@media print {
+  /* Sembunyikan semua yang tidak perlu dicetak */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Sembunyikan semua elemen di body secara default */
+  body > * {
+    visibility: hidden;
+  }
+  
+  /* Tampilkan HANYA area cetak laporan dan semua isinya */
+  .printable-area, .printable-area * {
+    visibility: visible;
+  }
+  
+  /* Tampilkan HANYA area cetak struk dan semua isinya */
+  .print-only, .print-only * {
+    visibility: visible;
+  }
+  
+  /* Posisikan area cetak ke pojok kiri atas halaman */
+  .printable-area, .print-only {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* <-- BARU: Style untuk pemisah halaman --> */
+  .page-break-after {
+    page-break-after: always;
+  }
+}
