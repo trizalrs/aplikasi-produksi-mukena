@@ -1,15 +1,12 @@
 // src/components/PageKasbon.jsx
 
 import React, { useState, useMemo } from 'react';
-import { PlusIcon, ChevronDownIcon } from './Icons'; // <-- BARU: Impor ikon Chevron
+import { PlusIcon, ChevronDownIcon, TrashIcon } from './Icons';
 
-// Komponen Halaman Kasbon dengan Fitur Expand/Collapse
-function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatCurrency, formatDate }) {
+function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatCurrency, formatDate, handleKasbonCancel }) {
     
-    // <-- BARU: State untuk melacak ID baris yang sedang di-expand -->
     const [expandedRowId, setExpandedRowId] = useState(null);
 
-    // Fungsi untuk toggle expand/collapse
     const handleToggleExpand = (pegawaiId) => {
         setExpandedRowId(prevId => (prevId === pegawaiId ? null : pegawaiId));
     };
@@ -20,7 +17,7 @@ function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatC
         pegawai.forEach(p => {
             if (p.status === 'Aktif') {
                 dataPegawai[p.id] = {
-                    id: p.id, // <-- BARU: Simpan ID pegawai untuk key dan handler
+                    id: p.id,
                     nama: p.nama,
                     totalPinjam: 0,
                     totalBayar: 0,
@@ -28,7 +25,8 @@ function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatC
             }
         });
 
-        kasbon.forEach(k => {
+        // <-- DIPERBARUI: Hanya hitung kasbon yang tidak dibatalkan -->
+        kasbon.filter(k => k.status !== 'dibatalkan').forEach(k => {
             if (dataPegawai[k.pegawaiId]) {
                 dataPegawai[k.pegawaiId].totalPinjam += k.jumlah;
             }
@@ -45,7 +43,7 @@ function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatC
                 ...p,
                 sisaKasbon: p.totalPinjam - p.totalBayar,
             }))
-            .filter(p => p.totalPinjam > 0 || p.totalBayar > 0);
+            .filter(p => p.sisaKasbon > 0 || p.totalBayar > 0); // Tampilkan yang masih punya sisa atau pernah bayar
 
     }, [pegawai, kasbon, pembayaranKasbon]);
 
@@ -62,7 +60,7 @@ function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatC
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10"></th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pegawai</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Pinjam</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Pinjam (Aktif)</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Bayar</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sisa Kasbon</th>
                             </tr>
@@ -75,15 +73,12 @@ function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatC
                                 return (
                                     <React.Fragment key={p.id}>
                                         <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => handleToggleExpand(p.id)}>
-                                            <td className="px-6 py-4">
-                                                <ChevronDownIcon className={`h-5 w-5 text-gray-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                                            </td>
+                                            <td className="px-6 py-4"><ChevronDownIcon className={`h-5 w-5 text-gray-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{p.nama}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(p.totalPinjam)}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">{formatCurrency(p.totalBayar)}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{formatCurrency(p.sisaKasbon)}</td>
                                         </tr>
-                                        {/* <-- BARU: Bagian yang akan tampil saat di-expand --> */}
                                         {isExpanded && (
                                             <tr className="bg-gray-50">
                                                 <td colSpan="5" className="px-10 py-4">
@@ -92,15 +87,20 @@ function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatC
                                                         {riwayatPegawai.length > 0 ? (
                                                             <ul className="divide-y divide-gray-200">
                                                                 {riwayatPegawai.map(item => (
-                                                                    <li key={item.id} className="py-2 flex justify-between items-center text-sm">
+                                                                    <li key={item.id} className={`py-2 flex justify-between items-center text-sm ${item.status === 'dibatalkan' ? 'text-gray-400 line-through' : ''}`}>
                                                                         <span>{formatDate(item.tanggal)}</span>
-                                                                        <span className="font-semibold text-gray-800">{formatCurrency(item.jumlah)}</span>
+                                                                        <div className="flex items-center space-x-4">
+                                                                            <span className="font-semibold">{formatCurrency(item.jumlah)}</span>
+                                                                            {item.status !== 'dibatalkan' && (
+                                                                                <button onClick={(e) => { e.stopPropagation(); handleKasbonCancel(item.id); }} className="text-red-500 hover:text-red-700" title="Batalkan Kasbon">
+                                                                                    <TrashIcon />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     </li>
                                                                 ))}
                                                             </ul>
-                                                        ) : (
-                                                            <p className="text-sm text-gray-500">Tidak ada riwayat kasbon.</p>
-                                                        )}
+                                                        ) : ( <p className="text-sm text-gray-500">Tidak ada riwayat kasbon.</p> )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -111,9 +111,7 @@ function PageKasbon({ pegawai, kasbon, pembayaranKasbon = [], openModal, formatC
                         </tbody>
                     </table>
                 </div>
-            ) : (
-                <div className="text-center bg-white p-10 rounded-lg shadow"><h3 className="text-lg font-semibold text-gray-700">Belum Ada Riwayat Kasbon</h3></div>
-            )}
+            ) : ( <div className="text-center bg-white p-10 rounded-lg shadow"><h3 className="text-lg font-semibold text-gray-700">Belum Ada Riwayat Kasbon</h3></div> )}
         </div>
     );
 }

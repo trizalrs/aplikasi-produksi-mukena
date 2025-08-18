@@ -13,36 +13,23 @@
 
 /* --- ATURAN CETAK FINAL YANG BENAR --- */
 @media print {
-  /* Sembunyikan semua yang tidak perlu dicetak */
-  .no-print {
-    display: none !important;
-  }
-  
-  /* Sembunyikan semua elemen di body secara default */
-  body > * {
-    visibility: hidden;
-  }
-  
-  /* Tampilkan HANYA area cetak laporan dan semua isinya */
-  .printable-area, .printable-area * {
-    visibility: visible;
-  }
-  
-  /* Tampilkan HANYA area cetak struk dan semua isinya */
-  .print-only, .print-only * {
-    visibility: visible;
-  }
-  
-  /* Posisikan area cetak ke pojok kiri atas halaman */
-  .printable-area, .print-only {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
+  .no-print { display: none !important; }
+  body > * { visibility: hidden; }
+  .printable-area, .printable-area * { visibility: visible; }
+  .print-only, .print-only * { visibility: visible; }
+  .printable-area, .print-only { position: absolute; left: 0; top: 0; width: 100%; }
+  .page-break-after { page-break-after: always; }
+}
 
-  /* <-- BARU: Style untuk pemisah halaman --> */
-  .page-break-after {
-    page-break-after: always;
+/* -- CLASS HELPER UNTUK SCROLLBAR HORIZONTAL -- */
+@layer components {
+  .horizontal-scrollbar {
+    @apply overflow-x-auto;
+    /* Menyembunyikan scrollbar di Firefox */
+    scrollbar-width: none;
+    /* Menyembunyikan scrollbar di Chrome, Safari, dan Opera */
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 }

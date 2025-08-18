@@ -1,7 +1,8 @@
-import React from 'react';
-import { SaveIcon } from './Icons'; // Impor ikon yang digunakan
+// src/components/PagePenggajian.jsx
 
-// Komponen Halaman Penggajian dengan Logika Perhitungan yang Benar
+import React from 'react';
+import { SaveIcon } from './Icons';
+
 function PagePenggajian({ pegawai, transaksi, kasbon, pembayaranKasbon, formatCurrency, reportFilters, setReportFilters, reportData, setReportData, showReport, setShowReport, handleProsesGajian, showNotification }) {
 
     const handleFilterChange = (e) => {
@@ -41,21 +42,17 @@ function PagePenggajian({ pegawai, transaksi, kasbon, pembayaranKasbon, formatCu
             : pegawai.filter(p => p.id == reportFilters.pegawaiId);
 
         const data = targetPegawai.map(p => {
-            // --- LOGIKA PERHITUNGAN KASBON YANG DIPERBARUI DAN BENAR ---
-            // 1. Hitung semua pinjaman yang pernah diambil oleh pegawai ini.
+            // <-- DIPERBARUI: Hanya hitung kasbon yang tidak dibatalkan -->
             const totalSemuaPinjaman = kasbon
-                .filter(k => k.pegawaiId == p.id)
+                .filter(k => k.pegawaiId == p.id && k.status !== 'dibatalkan')
                 .reduce((sum, k) => sum + k.jumlah, 0);
 
-            // 2. Hitung semua pembayaran yang pernah dilakukan SEBELUMNYA.
             const totalSemuaPembayaran = pembayaranKasbon
                 .filter(pb => pb.pegawaiId == p.id)
                 .reduce((sum, pb) => sum + pb.jumlah, 0);
             
-            // 3. Sisa utang yang harus diperhitungkan adalah selisihnya.
             const totalKasbonKeseluruhan = totalSemuaPinjaman - totalSemuaPembayaran;
 
-            // Hitung total upah HANYA dalam periode laporan
             const totalUpah = transaksi
                 .filter(t => {
                     const tDate = new Date(t.tanggal);
@@ -63,7 +60,6 @@ function PagePenggajian({ pegawai, transaksi, kasbon, pembayaranKasbon, formatCu
                 })
                 .reduce((sum, t) => sum + t.grandTotalUpah, 0);
             
-            // Tentukan pembayaran kasbon default (tidak boleh lebih besar dari upah atau sisa utang)
             const bayarKasbonDefault = Math.min(totalUpah, totalKasbonKeseluruhan);
             
             const gajiDiterima = totalUpah - bayarKasbonDefault;
@@ -105,7 +101,7 @@ function PagePenggajian({ pegawai, transaksi, kasbon, pembayaranKasbon, formatCu
                         <label className="block text-sm font-medium text-gray-700">Sampai Tanggal</label>
                         <input type="date" name="endDate" value={reportFilters.endDate} onChange={handleFilterChange} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"/>
                     </div>
-                    <button onClick={generateReport} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Tampilkan Data</button>
+                    <button onClick={generateReport} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Tampilkan Laporan</button>
                 </div>
             </div>
 
