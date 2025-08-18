@@ -1,6 +1,8 @@
 // src/App.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
+import useAuth from './useAuth'; // <-- BARU: Impor hook otentikasi
+import LoginPage from './components/LoginPage'; // <-- BARU: Impor halaman login
 
 // Impor Ikon
 import {
@@ -34,19 +36,17 @@ import ModalSuksesGajian from './components/ModalSuksesGajian';
 const getInitialState = (key, defaultValue = []) => {
     try {
         const storedItem = localStorage.getItem(key);
-        if (storedItem) {
-            return JSON.parse(storedItem);
-        }
-    } catch (error) {
-        console.error(`Gagal memuat data ${key}:`, error);
-    }
+        if (storedItem) { return JSON.parse(storedItem); }
+    } catch (error) { console.error(`Gagal memuat data ${key}:`, error); }
     return defaultValue;
 };
 
-
 // === Komponen Utama Aplikasi ===
 function App() {
-    // State Management
+    // <-- BARU: Logika Otentikasi ditaruh di paling atas -->
+    const { isAuthenticated, authData, setup, login, logout } = useAuth();
+
+    // State Management (sisanya sama)
     const [activeMenu, setActiveMenu] = useState('dashboard');
     const [pegawai, setPegawai] = useState(() => getInitialState('dataPegawai'));
     const [produk, setProduk] = useState(() => getInitialState('dataProduk'));
@@ -78,7 +78,7 @@ function App() {
     const [dataUntukSlipGaji, setDataUntukSlipGaji] = useState(null);
     const [dataUntukSlipGajiMassal, setDataUntukSlipGajiMassal] = useState(null);
 
-    // Hooks & Functions
+    // ... (Semua fungsi lainnya tetap sama)
     useEffect(() => { localStorage.setItem('dataPegawai', JSON.stringify(pegawai)); }, [pegawai]);
     useEffect(() => { localStorage.setItem('dataProduk', JSON.stringify(produk)); }, [produk]);
     useEffect(() => { localStorage.setItem('dataTransaksi', JSON.stringify(transaksi)); }, [transaksi]);
@@ -121,6 +121,12 @@ function App() {
     const handleBackup = () => { const dataToBackup = { pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian }; const jsonString = JSON.stringify(dataToBackup, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); const date = new Date().toISOString().slice(0, 10); link.download = `backup-produksi-mukena-${date}.json`; link.href = url; link.click(); URL.revokeObjectURL(url); showNotification("Backup data berhasil diunduh!"); };
     const handleRestoreChange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const restoredData = JSON.parse(event.target.result); handleKonfirmasi("Pulihkan Data?", "PERINGATAN: Ini akan menimpa semua data yang ada. Lanjutkan?", () => { if (restoredData && Array.isArray(restoredData.pegawai) && Array.isArray(restoredData.produk)) { setPegawai(restoredData.pegawai || []); setProduk(restoredData.produk || []); setTransaksi(restoredData.transaksi || []); setKasbon(restoredData.kasbon || []); setPembayaranKasbon(restoredData.pembayaranKasbon || []); setRiwayatGajian(restoredData.riwayatGajian || []); showNotification("Data berhasil dipulihkan dari backup!"); } else { throw new Error("Format file backup tidak valid."); } resetKonfirmasi(); }); } catch (error) { showNotification(`Gagal memulihkan data: ${error.message}`, "error"); } finally { e.target.value = null; } }; reader.readAsText(file); };
 
+    // <-- BARU: Jika belum terotentikasi, tampilkan halaman Login -->
+    if (!isAuthenticated) {
+        return <LoginPage authData={authData} onSetup={setup} onLogin={login} />;
+    }
+
+    // Jika sudah login, tampilkan aplikasi utama
     return (
         <>
             <div className="main-app no-print">
@@ -136,6 +142,8 @@ function App() {
                             <button onClick={handleBackup} className="flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> <DownloadIcon /> Backup </button>
                             <button onClick={() => fileInputRef.current.click()} className="flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> <UploadIcon /> Restore </button>
                             <input type="file" ref={fileInputRef} onChange={handleRestoreChange} accept=".json" className="hidden" />
+                            {/* <-- BARU: Tombol Logout --> */}
+                            <button onClick={logout} className="flex items-center bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> Logout </button>
                         </div>
                     </div>
                 </header>
