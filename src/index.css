@@ -1,11 +1,11 @@
 /* src/index.css */
 
+/* Impor font harus di paling atas */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Impor font untuk struk */
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
 
 .font-struk {
     font-family: 'Roboto Mono', monospace;
@@ -17,7 +17,7 @@
   body > * { visibility: hidden; }
   .printable-area, .printable-area * { visibility: visible; }
   .print-only, .print-only * { visibility: visible; }
-  .printable-area, .print-only { position: absolute; left: 0; top: 0; }
+  .printable-area, .print-only { position: absolute; left: 0; top: 0; width: 100%; }
   .page-break-after { page-break-after: always; }
 }
 
@@ -32,20 +32,41 @@
   }
 }
 
-/* -- ATURAN BARU UNTUK UKURAN STRUK CETAK -- */
+/* -- ATURAN UNTUK UKURAN STRUK CETAK -- */
 .struk-80mm {
     width: 80mm;
 }
 .struk-58mm {
     width: 58mm;
     font-size: 9.5px;
+    box-sizing: border-box;
+    padding: 0 4mm;
 }
 
-/* -- ATURAN BARU UNTUK KONTEN DI DALAM STRUK -- */
+/* -- ATURAN CETAK KHUSUS 58mm -- */
+@media print {
+  .struk-58mm .flex.justify-between {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+  }
+  .struk-58mm .flex.justify-between span:first-child {
+    text-align: left;
+    white-space: nowrap;
+  }
+  .struk-58mm .flex.justify-between span:last-child {
+    text-align: right;
+  }
+  .struk-58mm .pl-2 {
+    padding-left: 0;
+  }
+}
+
+/* -- ATURAN UNTUK KONTEN DI DALAM STRUK -- */
 .struk-content {
     width: 100%;
     box-sizing: border-box;
-    padding: 0 2mm; /* Beri sedikit padding agar tidak terlalu mepet ke tepi kertas */
+    padding: 0 2mm;
 }
 
 /* -- JURUS UNTUK MELURUSKAN SEMUA UKURAN KERTAS -- */
@@ -55,16 +76,13 @@
     grid-template-columns: auto 1fr;
     gap: 8px;
   }
-  
   .print-only .flex.justify-between span:first-child {
     text-align: left;
     white-space: nowrap;
   }
-
   .print-only .flex.justify-between span:last-child {
     text-align: right;
   }
-
   .print-only .pl-2 {
     padding-left: 0;
   }
