@@ -31,6 +31,7 @@ import StrukKasbon from './components/StrukKasbon';
 import SlipGaji from './components/SlipGaji';
 import ModalSuksesGajian from './components/ModalSuksesGajian';
 
+
 const getInitialState = (key, defaultValue = []) => {
     try {
         const storedItem = localStorage.getItem(key);
@@ -114,24 +115,12 @@ function App() {
     const handleTransaksiSubmit = (formData) => { let newTransaksiData; if (editingTransaksi) { const updatedTransaksi = { ...editingTransaksi, ...formData }; setTransaksi(transaksi.map(t => t.id === editingTransaksi.id ? updatedTransaksi : t)); newTransaksiData = updatedTransaksi; showNotification("Transaksi berhasil diperbarui!"); } else { newTransaksiData = { id: Date.now(), ...formData, sudahDibayar: false }; setTransaksi(prev => [...prev, newTransaksiData]); showNotification("Transaksi baru berhasil disimpan!"); } setDataUntukStruk(newTransaksiData); closeTransaksiModal(); setIsSuksesModalOpen(true); };
     const handleKasbonSubmit = (formData) => { let newKasbonData; if (editingKasbon) { const updatedKasbon = { ...editingKasbon, ...formData }; setKasbon(kasbon.map(k => k.id === editingKasbon.id ? updatedKasbon : k)); newKasbonData = updatedKasbon; showNotification("Data kasbon berhasil diperbarui!"); } else { newKasbonData = { id: Date.now(), ...formData, status: 'aktif' }; setKasbon(prev => [...prev, newKasbonData]); showNotification("Kasbon baru berhasil ditambahkan!"); } setDataUntukStrukKasbon(newKasbonData); closeKasbonModal(); setIsSuksesKasbonModalOpen(true); };
     const handleCetakSlip = (riwayatId) => { const dataSlip = riwayatGajian.find(r => r.id === riwayatId); if (dataSlip) { setDataUntukSlipGaji(dataSlip); setTimeout(() => { window.print(); setDataUntukSlipGaji(null); }, 100); } };
-    
-    // <-- BARU: Fungsi untuk mencetak ulang struk kasbon -->
-    const handleCetakStrukKasbon = (kasbonId) => {
-        const dataStruk = kasbon.find(k => k.id === kasbonId);
-        if (dataStruk) {
-            setDataUntukStrukKasbon(dataStruk);
-            setTimeout(() => {
-                window.print();
-                setDataUntukStrukKasbon(null);
-            }, 100);
-        }
-    };
-    
+    const handleCetakStrukKasbon = (kasbonId) => { const dataStruk = kasbon.find(k => k.id === kasbonId); if (dataStruk) { setDataUntukStrukKasbon(dataStruk); setTimeout(() => { window.print(); setDataUntukStrukKasbon(null); }, 100); } };
     const handleCetakSlipMassal = () => { window.print(); setDataUntukSlipGajiMassal(null); setIsSuksesGajianModalOpen(false); };
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const handleBackup = () => { const dataToBackup = { pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian, authData }; const jsonString = JSON.stringify(dataToBackup, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); const date = new Date().toISOString().slice(0, 10); link.download = `backup-produksi-mukena-${date}.json`; link.href = url; link.click(); URL.revokeObjectURL(url); showNotification("Backup data berhasil diunduh!"); };
-    const handleRestoreChange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const restoredData = JSON.parse(event.target.result); handleKonfirmasi("Pulihkan Data?", "PERINGATAN: Ini akan menimpa semua data yang ada. Lanjutkan?", () => { if (restoredData && Array.isArray(restoredData.pegawai) && Array.isArray(restoredData.produk)) { setPegawai(restoredData.pegawai || []); setProduk(restoredData.produk || []); setTransaksi(restoredData.transaksi || []); setKasbon(restoredData.kasbon || []); setPembayaranKasbon(restoredData.pembayaranKasbon || []); setRiwayatGajian(restoredData.riwayatGajian || []); if (restoredData.authData) { localStorage.setItem('authData', JSON.stringify(restoredData.authData)); setAuthData(restoredData.authData); } showNotification("Data berhasil dipulihkan dari backup!"); } else { throw new Error("Format file backup tidak valid."); } resetKonfirmasi(); }); } catch (error) { showNotification(`Gagal memulihkan data: ${error.message}`, "error"); } finally { e.target.value = null; } }; reader.readAsText(file); };
+    const handleRestoreChange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const restoredData = JSON.parse(event.target.result); handleKonfirmasi("Pulihkan Data?", "PERINGATAN: Ini akan menimpa semua data yang ada. Lanjutkan?", () => { if (restoredData && Array.isArray(restoredData.pegawai) && Array.isArray(restoredData.produk)) { setPegawai(restoredData.pegawai || []); setProduk(restoredData.produk || []); setTransaksi(restoredData.transaksi || []); setKasbon(restoredData.kasbon || []); setPembayaranKasbon(restoredData.pembayaranKasbon || []); setRiwayatGajian(restoredData.riwayatGajian || []); if (restoredData.authData) { localStorage.setItem('authData', JSON.stringify(restoredData.authData)); } window.location.reload(); } else { throw new Error("Format file backup tidak valid."); } resetKonfirmasi(); }); } catch (error) { showNotification(`Gagal memulihkan data: ${error.message}`, "error"); } finally { e.target.value = null; } }; reader.readAsText(file); };
 
     if (!isAuthenticated) {
         return <LoginPage authData={authData} onSetup={setup} onLogin={login} />;
@@ -145,18 +134,29 @@ function App() {
                 <ModalSuksesTransaksi isOpen={isSuksesModalOpen} closeModal={() => setIsSuksesModalOpen(false)} setDataUntukStruk={setDataUntukStruk} />
                 <ModalSuksesKasbon isOpen={isSuksesKasbonModalOpen} closeModal={() => setIsSuksesKasbonModalOpen(false)} setDataUntukStrukKasbon={setDataUntukStrukKasbon} />
                 <ModalSuksesGajian isOpen={isSuksesGajianModalOpen} closeModal={() => { setIsSuksesGajianModalOpen(false); setDataUntukSlipGajiMassal(null); }} handlePrint={handleCetakSlipMassal} />
+                
+                {/* -- BAGIAN HEADER DIPERBARUI UNTUK RESPONSIVE -- */}
                 <header className="bg-white shadow-md p-4 sticky top-0 z-40">
-                    <div className="container mx-auto flex justify-between items-center flex-wrap gap-4">
-                        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Aplikasi Produksi Mukena</h1>
-                        <div className="flex items-center space-x-2 flex-wrap">
-                            <div className="flex items-center space-x-2"><label className="text-sm font-medium text-gray-600">Ukuran Struk:</label><select value={paperSize} onChange={(e) => setPaperSize(e.target.value)} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="80mm">80mm</option><option value="58mm">58mm</option></select></div>
-                            <button onClick={handleBackup} className="flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> <DownloadIcon /> Backup </button>
-                            <button onClick={() => fileInputRef.current.click()} className="flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> <UploadIcon /> Restore </button>
+                    <div className="container mx-auto flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                        <h1 className="text-xl md:text-2xl font-bold text-gray-800 self-start md:self-center">
+                            Aplikasi Produksi Mukena
+                        </h1>
+                        <div className="flex items-center space-x-2 flex-wrap gap-2 justify-start w-full md:w-auto">
+                            <div className="flex items-center space-x-2">
+                                <label className="text-sm font-medium text-gray-600 flex-shrink-0">Ukuran Struk:</label>
+                                <select value={paperSize} onChange={(e) => setPaperSize(e.target.value)} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                    <option value="80mm">80mm</option>
+                                    <option value="58mm">58mm</option>
+                                </select>
+                            </div>
+                            <button onClick={handleBackup} className="flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-sm"> <DownloadIcon /> Backup </button>
+                            <button onClick={() => fileInputRef.current.click()} className="flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm"> <UploadIcon /> Restore </button>
                             <input type="file" ref={fileInputRef} onChange={handleRestoreChange} accept=".json" className="hidden" />
-                            <button onClick={logout} className="flex items-center bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> Logout </button>
+                            <button onClick={logout} className="flex items-center bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-sm"> Logout </button>
                         </div>
                     </div>
                 </header>
+
                 <nav className="bg-white shadow-sm horizontal-scrollbar">
                     <div className="container mx-auto flex whitespace-nowrap">
                         <button onClick={() => setActiveMenu('dashboard')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'dashboard' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}> <ChartPieIcon /> Dashboard </button>
