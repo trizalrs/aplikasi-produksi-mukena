@@ -1,8 +1,8 @@
 // src/App.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import useAuth from './useAuth'; // <-- BARU: Impor hook otentikasi
-import LoginPage from './components/LoginPage'; // <-- BARU: Impor halaman login
+import useAuth from './useAuth';
+import LoginPage from './components/LoginPage';
 
 // Impor Ikon
 import {
@@ -11,7 +11,7 @@ import {
     ChevronDownIcon, SaveIcon, ArchiveIcon, DocumentChartBarIcon, PrinterIcon
 } from './components/Icons';
 
-// Impor Halaman
+// Impor Halaman dan Komponen lainnya...
 import PageDashboard from './components/PageDashboard';
 import PagePegawai from './components/PagePegawai';
 import PageProduk from './components/PageProduk';
@@ -19,8 +19,6 @@ import PageTransaksi from './components/PageTransaksi';
 import PageKasbon from './components/PageKasbon';
 import PagePenggajian from './components/PagePenggajian';
 import PageLaporan from './components/PageLaporan';
-
-// Impor Modal
 import ModalPegawai from './components/ModalPegawai';
 import ModalProduk from './components/ModalProduk';
 import ModalTransaksi from './components/ModalTransaksi';
@@ -43,10 +41,9 @@ const getInitialState = (key, defaultValue = []) => {
 
 // === Komponen Utama Aplikasi ===
 function App() {
-    // <-- BARU: Logika Otentikasi ditaruh di paling atas -->
     const { isAuthenticated, authData, setup, login, logout } = useAuth();
 
-    // State Management (sisanya sama)
+    // State Management
     const [activeMenu, setActiveMenu] = useState('dashboard');
     const [pegawai, setPegawai] = useState(() => getInitialState('dataPegawai'));
     const [produk, setProduk] = useState(() => getInitialState('dataProduk'));
@@ -54,6 +51,7 @@ function App() {
     const [kasbon, setKasbon] = useState(() => getInitialState('dataKasbon'));
     const [pembayaranKasbon, setPembayaranKasbon] = useState(() => getInitialState('pembayaranKasbon'));
     const [riwayatGajian, setRiwayatGajian] = useState(() => getInitialState('riwayatGajian'));
+    const [paperSize, setPaperSize] = useState(() => localStorage.getItem('paperSize') || '80mm');
     const [isPegawaiModalOpen, setIsPegawaiModalOpen] = useState(false);
     const [editingPegawai, setEditingPegawai] = useState(null);
     const [formPegawaiData, setFormPegawaiData] = useState({ nama: '', alamat: '', kontak: '', status: 'Aktif' });
@@ -78,7 +76,8 @@ function App() {
     const [dataUntukSlipGaji, setDataUntukSlipGaji] = useState(null);
     const [dataUntukSlipGajiMassal, setDataUntukSlipGajiMassal] = useState(null);
 
-    // ... (Semua fungsi lainnya tetap sama)
+    // Hooks & Functions
+    useEffect(() => { localStorage.setItem('paperSize', paperSize); }, [paperSize]);
     useEffect(() => { localStorage.setItem('dataPegawai', JSON.stringify(pegawai)); }, [pegawai]);
     useEffect(() => { localStorage.setItem('dataProduk', JSON.stringify(produk)); }, [produk]);
     useEffect(() => { localStorage.setItem('dataTransaksi', JSON.stringify(transaksi)); }, [transaksi]);
@@ -115,18 +114,29 @@ function App() {
     const handleTransaksiSubmit = (formData) => { let newTransaksiData; if (editingTransaksi) { const updatedTransaksi = { ...editingTransaksi, ...formData }; setTransaksi(transaksi.map(t => t.id === editingTransaksi.id ? updatedTransaksi : t)); newTransaksiData = updatedTransaksi; showNotification("Transaksi berhasil diperbarui!"); } else { newTransaksiData = { id: Date.now(), ...formData, sudahDibayar: false }; setTransaksi(prev => [...prev, newTransaksiData]); showNotification("Transaksi baru berhasil disimpan!"); } setDataUntukStruk(newTransaksiData); closeTransaksiModal(); setIsSuksesModalOpen(true); };
     const handleKasbonSubmit = (formData) => { let newKasbonData; if (editingKasbon) { const updatedKasbon = { ...editingKasbon, ...formData }; setKasbon(kasbon.map(k => k.id === editingKasbon.id ? updatedKasbon : k)); newKasbonData = updatedKasbon; showNotification("Data kasbon berhasil diperbarui!"); } else { newKasbonData = { id: Date.now(), ...formData, status: 'aktif' }; setKasbon(prev => [...prev, newKasbonData]); showNotification("Kasbon baru berhasil ditambahkan!"); } setDataUntukStrukKasbon(newKasbonData); closeKasbonModal(); setIsSuksesKasbonModalOpen(true); };
     const handleCetakSlip = (riwayatId) => { const dataSlip = riwayatGajian.find(r => r.id === riwayatId); if (dataSlip) { setDataUntukSlipGaji(dataSlip); setTimeout(() => { window.print(); setDataUntukSlipGaji(null); }, 100); } };
+    
+    // <-- BARU: Fungsi untuk mencetak ulang struk kasbon -->
+    const handleCetakStrukKasbon = (kasbonId) => {
+        const dataStruk = kasbon.find(k => k.id === kasbonId);
+        if (dataStruk) {
+            setDataUntukStrukKasbon(dataStruk);
+            setTimeout(() => {
+                window.print();
+                setDataUntukStrukKasbon(null);
+            }, 100);
+        }
+    };
+    
     const handleCetakSlipMassal = () => { window.print(); setDataUntukSlipGajiMassal(null); setIsSuksesGajianModalOpen(false); };
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
-    const handleBackup = () => { const dataToBackup = { pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian }; const jsonString = JSON.stringify(dataToBackup, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); const date = new Date().toISOString().slice(0, 10); link.download = `backup-produksi-mukena-${date}.json`; link.href = url; link.click(); URL.revokeObjectURL(url); showNotification("Backup data berhasil diunduh!"); };
-    const handleRestoreChange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const restoredData = JSON.parse(event.target.result); handleKonfirmasi("Pulihkan Data?", "PERINGATAN: Ini akan menimpa semua data yang ada. Lanjutkan?", () => { if (restoredData && Array.isArray(restoredData.pegawai) && Array.isArray(restoredData.produk)) { setPegawai(restoredData.pegawai || []); setProduk(restoredData.produk || []); setTransaksi(restoredData.transaksi || []); setKasbon(restoredData.kasbon || []); setPembayaranKasbon(restoredData.pembayaranKasbon || []); setRiwayatGajian(restoredData.riwayatGajian || []); showNotification("Data berhasil dipulihkan dari backup!"); } else { throw new Error("Format file backup tidak valid."); } resetKonfirmasi(); }); } catch (error) { showNotification(`Gagal memulihkan data: ${error.message}`, "error"); } finally { e.target.value = null; } }; reader.readAsText(file); };
+    const handleBackup = () => { const dataToBackup = { pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian, authData }; const jsonString = JSON.stringify(dataToBackup, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); const date = new Date().toISOString().slice(0, 10); link.download = `backup-produksi-mukena-${date}.json`; link.href = url; link.click(); URL.revokeObjectURL(url); showNotification("Backup data berhasil diunduh!"); };
+    const handleRestoreChange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const restoredData = JSON.parse(event.target.result); handleKonfirmasi("Pulihkan Data?", "PERINGATAN: Ini akan menimpa semua data yang ada. Lanjutkan?", () => { if (restoredData && Array.isArray(restoredData.pegawai) && Array.isArray(restoredData.produk)) { setPegawai(restoredData.pegawai || []); setProduk(restoredData.produk || []); setTransaksi(restoredData.transaksi || []); setKasbon(restoredData.kasbon || []); setPembayaranKasbon(restoredData.pembayaranKasbon || []); setRiwayatGajian(restoredData.riwayatGajian || []); if (restoredData.authData) { localStorage.setItem('authData', JSON.stringify(restoredData.authData)); setAuthData(restoredData.authData); } showNotification("Data berhasil dipulihkan dari backup!"); } else { throw new Error("Format file backup tidak valid."); } resetKonfirmasi(); }); } catch (error) { showNotification(`Gagal memulihkan data: ${error.message}`, "error"); } finally { e.target.value = null; } }; reader.readAsText(file); };
 
-    // <-- BARU: Jika belum terotentikasi, tampilkan halaman Login -->
     if (!isAuthenticated) {
         return <LoginPage authData={authData} onSetup={setup} onLogin={login} />;
     }
 
-    // Jika sudah login, tampilkan aplikasi utama
     return (
         <>
             <div className="main-app no-print">
@@ -138,11 +148,11 @@ function App() {
                 <header className="bg-white shadow-md p-4 sticky top-0 z-40">
                     <div className="container mx-auto flex justify-between items-center flex-wrap gap-4">
                         <h1 className="text-xl md:text-2xl font-bold text-gray-800">Aplikasi Produksi Mukena</h1>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-wrap">
+                            <div className="flex items-center space-x-2"><label className="text-sm font-medium text-gray-600">Ukuran Struk:</label><select value={paperSize} onChange={(e) => setPaperSize(e.target.value)} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="80mm">80mm</option><option value="58mm">58mm</option></select></div>
                             <button onClick={handleBackup} className="flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> <DownloadIcon /> Backup </button>
                             <button onClick={() => fileInputRef.current.click()} className="flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> <UploadIcon /> Restore </button>
                             <input type="file" ref={fileInputRef} onChange={handleRestoreChange} accept=".json" className="hidden" />
-                            {/* <-- BARU: Tombol Logout --> */}
                             <button onClick={logout} className="flex items-center bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg transition duration-300 text-sm"> Logout </button>
                         </div>
                     </div>
@@ -165,7 +175,7 @@ function App() {
                     {activeMenu === 'transaksi' && <PageTransaksi transaksi={transaksi} openModal={openTransaksiModal} handleDelete={handleTransaksiDelete} formatCurrency={formatCurrency} formatDate={formatDate} pegawai={pegawai} />}
                     {activeMenu === 'kasbon' && <PageKasbon pegawai={pegawai} kasbon={kasbon} pembayaranKasbon={pembayaranKasbon} openModal={openKasbonModal} formatCurrency={formatCurrency} formatDate={formatDate} handleKasbonCancel={handleKasbonCancel} />}
                     {activeMenu === 'penggajian' && <PagePenggajian pegawai={pegawai} transaksi={transaksi} kasbon={kasbon} pembayaranKasbon={pembayaranKasbon} formatCurrency={formatCurrency} reportFilters={reportFilters} setReportFilters={setReportFilters} reportData={reportData} setReportData={setReportData} showReport={showReport} setShowReport={setShowReport} handleProsesGajian={handleProsesGajian} showNotification={showNotification} />}
-                    {activeMenu === 'laporan' && <PageLaporan riwayatGajian={riwayatGajian} formatCurrency={formatCurrency} formatDate={formatDate} handleRiwayatGajianDelete={handleRiwayatGajianDelete} transaksi={transaksi} pegawai={pegawai} produk={produk} showNotification={showNotification} handleCetakSlip={handleCetakSlip} />}
+                    {activeMenu === 'laporan' && <PageLaporan riwayatGajian={riwayatGajian} kasbon={kasbon} formatCurrency={formatCurrency} formatDate={formatDate} handleRiwayatGajianDelete={handleRiwayatGajianDelete} transaksi={transaksi} pegawai={pegawai} produk={produk} showNotification={showNotification} handleCetakSlip={handleCetakSlip} handleCetakStrukKasbon={handleCetakStrukKasbon} />}
                 </main>
                 {isPegawaiModalOpen && <ModalPegawai editingPegawai={editingPegawai} formPegawaiData={formPegawaiData} handleInputChange={handlePegawaiInputChange} handleSubmit={handlePegawaiSubmit} closeModal={closePegawaiModal} />}
                 {isProdukModalOpen && <ModalProduk editingProduk={editingProduk} formProdukData={formProdukData} handleProdukNameChange={handleProdukNameChange} handleGroupChange={handleGroupChange} handleVariantChange={handleVariantChange} addGroup={addGroup} removeGroup={removeGroup} addVariantToGroup={addVariantToGroup} removeVariantFromGroup={removeVariantFromGroup} handleSubmit={handleProdukSubmit} closeModal={closeProdukModal} />}
@@ -173,10 +183,10 @@ function App() {
                 {isKasbonModalOpen && <ModalKasbon pegawai={pegawai} editingKasbon={editingKasbon} handleSubmit={handleKasbonSubmit} closeModal={closeKasbonModal} formatCurrency={formatCurrency} />}
             </div>
             <div className="print-only">
-                {dataUntukStruk && ( <StrukTransaksi transaksi={dataUntukStruk} formatCurrency={formatCurrency} formatDate={formatDate} /> )}
-                {dataUntukStrukKasbon && ( <StrukKasbon kasbon={dataUntukStrukKasbon} formatCurrency={formatCurrency} formatDate={formatDate} /> )}
-                {dataUntukSlipGaji && ( <SlipGaji data={dataUntukSlipGaji} formatCurrency={formatCurrency} formatDate={formatDate} /> )}
-                {dataUntukSlipGajiMassal && dataUntukSlipGajiMassal.map(slip => ( <SlipGaji key={slip.id} data={slip} formatCurrency={formatCurrency} formatDate={formatDate} /> ))}
+                {dataUntukStruk && ( <StrukTransaksi transaksi={dataUntukStruk} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> )}
+                {dataUntukStrukKasbon && ( <StrukKasbon kasbon={dataUntukStrukKasbon} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> )}
+                {dataUntukSlipGaji && ( <SlipGaji data={dataUntukSlipGaji} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> )}
+                {dataUntukSlipGajiMassal && dataUntukSlipGajiMassal.map(slip => ( <SlipGaji key={slip.id} data={slip} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> ))}
             </div>
         </>
     );
