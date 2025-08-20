@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import CryptoJS from 'crypto-js';
 
 const useAuth = () => {
-    // Kunci rahasia untuk "mengasinkan" hash. Ganti dengan string acak Anda sendiri.
     const SALT = 'secret-key-produksi-mukena-12345';
     
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    
+    // <-- DIPERBARUI: Fungsi setAuthData diekspos agar bisa diupdate dari luar -->
     const [authData, setAuthData] = useState(() => {
         try {
             const storedData = localStorage.getItem('authData');
@@ -17,9 +18,7 @@ const useAuth = () => {
         }
     });
 
-    // Cek status login setiap kali aplikasi dimuat
     useEffect(() => {
-        // Otomatis login jika user sudah pernah login sebelumnya
         if (localStorage.getItem('isAuthenticated') === 'true' && authData) {
             setIsAuthenticated(true);
         }
@@ -35,7 +34,7 @@ const useAuth = () => {
         const newAuthData = { username, hashedPassword };
         localStorage.setItem('authData', JSON.stringify(newAuthData));
         setAuthData(newAuthData);
-        login(username, password); // Langsung login setelah setup
+        login(username, password);
         return true;
     };
 
@@ -56,7 +55,8 @@ const useAuth = () => {
         localStorage.removeItem('isAuthenticated');
     };
 
-    return { isAuthenticated, authData, setup, login, logout };
+    // <-- DIPERBARUI: Tambahkan setAuthData ke return -->
+    return { isAuthenticated, authData, setup, login, logout, setAuthData };
 };
 
 export default useAuth;
