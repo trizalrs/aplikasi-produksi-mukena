@@ -4,17 +4,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
-  if (command === 'build') {
-    // Konfigurasi untuk build (saat menjalankan npm run deploy)
-    return {
-      base: "/aplikasi-produksi-mukena/",
-      plugins: [react()],
-    }
-  } else {
-    // Konfigurasi untuk development (saat menjalankan yarn dev)
-    return {
-      plugins: [react()],
-    }
-  }
+export default defineConfig({
+  // Gunakan base path ini untuk SEMUA kondisi (dev dan build)
+  base: "/aplikasi-produksi-mukena/", 
+  plugins: [react()],
 })
