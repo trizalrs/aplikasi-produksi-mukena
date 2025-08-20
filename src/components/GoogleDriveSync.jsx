@@ -1,8 +1,8 @@
 // src/components/GoogleDriveSync.jsx
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { googleLogout } from '@react-oauth/google';
-import { XCircleIcon } from './Icons';
+import { useGoogleLogin } from '@react-oauth/google';
+import { XCircleIcon } from './Icons'; // Pastikan XCircleIcon ada di Icons.jsx
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
 const FILENAME = 'database-produksi-mukena.json';
@@ -12,6 +12,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
     const [token, setToken] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Fungsi untuk mengambil info user dan menyimpannya
     const fetchUserInfo = useCallback(async (tokenResponse) => {
         try {
             const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -20,7 +21,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
             if (!res.ok) throw new Error('Gagal mengambil info user.');
             const userInfo = await res.json();
             const userData = { name: userInfo.name, picture: userInfo.picture };
-            setUser(userData);
+            setUser(userData); // Update state untuk UI
             localStorage.setItem('googleUser', JSON.stringify(userData));
         } catch (error) {
             console.error(error);
@@ -28,6 +29,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         }
     }, [showNotification]);
 
+    // Handler login dari Google
     const handleLogin = useGoogleLogin({
         onSuccess: (tokenResponse) => {
             setToken(tokenResponse);
@@ -36,14 +38,16 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
             showNotification(`Berhasil terhubung!`, 'success');
         },
         scope: SCOPES,
-        onError: (error) => showNotification(`Login Google Gagal: ${error.message}`, 'error'),
+        onError: (error) => showNotification(`Login Google Gagal: ${error.message || 'Error tidak diketahui'}`, 'error'),
     });
-
+    
+    // Efek untuk memulihkan sesi saat komponen dimuat
     useEffect(() => {
         const storedToken = localStorage.getItem('googleToken');
         if (storedToken) {
             const tokenData = JSON.parse(storedToken);
             setToken(tokenData);
+            
             const storedUser = localStorage.getItem('googleUser');
             if(storedUser){
                 setUser(JSON.parse(storedUser));
@@ -80,14 +84,17 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
             const form = new FormData();
             form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
             form.append('file', blob);
+
             let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
             let method = 'POST';
             if (fileId) {
                 url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
                 method = 'PATCH';
             }
+            
             const res = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token.access_token}` }, body: form });
             if (!res.ok) throw new Error('Proses upload gagal.');
+
             showNotification(fileId ? 'Backup berhasil diperbarui!' : 'File backup baru berhasil dibuat!', 'success');
             return Promise.resolve();
         } catch (error) {
@@ -98,13 +105,15 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         }
     }, [token, getAllData, showNotification]);
 
-    useImperativeHandle(ref, () => ({ backup: handleBackup, isConnected: !!user }));
+    useImperativeHandle(ref, () => ({
+        backup: handleBackup,
+        isConnected: !!user,
+    }));
 
     const handleRestore = () => { if (!token) { showNotification('Harap hubungkan ke Google Drive.', 'error'); return; } handleKonfirmasi('Restore dari Drive?', 'Ini akan menimpa semua data saat ini. Lanjutkan?', async () => { resetKonfirmasi(); setIsProcessing(true); showNotification('Mencari data...', 'warning'); try { const fileId = await findFileId(); if (!fileId) { showNotification('File backup tidak ditemukan.', 'error'); setIsProcessing(false); return; } const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { 'Authorization': `Bearer ${token.access_token}` } }); if (!res.ok) throw new Error('Gagal mengunduh data.'); const restoredData = await res.json(); restoreAllData(restoredData); } catch (error) { showNotification(`Restore Gagal: ${error.message}`, 'error'); } finally { setIsProcessing(false); } }); };
     
-    // -- DIPERBARUI: Mengganti <div> dengan Fragment <> --
     return (
-        <>
+        <div className="flex items-center space-x-2 flex-wrap gap-2">
             {user ? (
                 <>
                     <button onClick={handleBackup} disabled={isProcessing} className="flex-shrink-0 flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:bg-gray-400"> {isProcessing ? 'Memproses...' : 'Backup ke Drive'} </button>
@@ -118,7 +127,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
             ) : (
                 <button onClick={() => handleLogin()} className="flex-shrink-0 flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-lg text-sm"> Hubungkan ke Google Drive </button>
             )}
-        </>
+        </div>
     );
 });
 
