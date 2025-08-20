@@ -133,14 +133,7 @@ function App() {
         handleKonfirmasi('Logout', message, () => {
             resetKonfirmasi();
             if (isDriveConnected) {
-                driveRef.current.backup()
-                    .then(() => {
-                        showNotification('Backup berhasil! Anda akan logout...', 'success');
-                        setTimeout(() => logout(), 2000);
-                    })
-                    .catch(err => {
-                        showNotification('Backup gagal, logout dibatalkan. Silakan coba lagi.', 'error');
-                    });
+                driveRef.current.backup().finally(() => logout());
             } else {
                 logout();
             }

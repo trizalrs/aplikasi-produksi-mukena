@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandl
 import { useGoogleLogin } from '@react-oauth/google';
 import { XCircleIcon } from './Icons'; // Pastikan XCircleIcon ada di Icons.jsx
 
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 const FILENAME = 'database-produksi-mukena.json';
 
 const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotification, handleKonfirmasi, resetKonfirmasi }, ref) => {
