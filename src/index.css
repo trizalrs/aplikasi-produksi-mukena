@@ -1,89 +1,55 @@
 /* src/index.css */
 
-/* Impor font harus di paling atas */
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Impor font untuk struk */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
 
 .font-struk {
     font-family: 'Roboto Mono', monospace;
 }
 
-/* --- ATURAN CETAK FINAL YANG BENAR --- */
+/* --- ATURAN CETAK DIPERBARUI AGAR KOMPATIBEL DENGAN MOBILE --- */
 @media print {
-  .no-print { display: none !important; }
-  body > * { visibility: hidden; }
-  .printable-area, .printable-area * { visibility: visible; }
-  .print-only, .print-only * { visibility: visible; }
-  .printable-area, .print-only { position: absolute; left: 0; top: 0; width: 100%; }
-  .page-break-after { page-break-after: always; }
-}
+  /* Sembunyikan semua yang tidak perlu dicetak (header, nav, dll) */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* -- DIHAPUS: Aturan lama yang terlalu agresif --
+  body > * {
+    visibility: hidden;
+  }
+  
+  .printable-area, .printable-area * {
+    visibility: visible;
+  }
+  
+  .print-only, .print-only * {
+    visibility: visible;
+  }
+  */
 
-/* -- CLASS HELPER UNTUK SCROLLBAR HORIZONTAL -- */
-@layer components {
-  .horizontal-scrollbar {
-    @apply overflow-x-auto;
-    scrollbar-width: none;
-    &::-webkit-scrollbar {
-      display: none;
-    }
+  /* -- BARU: Aturan yang lebih aman -- */
+  /* Sembunyikan aplikasi utama secara spesifik */
+  .main-app {
+    display: none !important;
   }
-}
 
-/* -- ATURAN UNTUK UKURAN STRUK CETAK -- */
-.struk-80mm {
-    width: 80mm;
-}
-.struk-58mm {
-    width: 58mm;
-    font-size: 9.5px;
-    box-sizing: border-box;
-    padding: 0 4mm;
-}
-
-/* -- ATURAN CETAK KHUSUS 58mm -- */
-@media print {
-  .struk-58mm .flex.justify-between {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px;
+  /* Pastikan area cetak terlihat dan berada di posisi yang benar */
+  .print-only {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
-  .struk-58mm .flex.justify-between span:first-child {
-    text-align: left;
-    white-space: nowrap;
-  }
-  .struk-58mm .flex.justify-between span:last-child {
-    text-align: right;
-  }
-  .struk-58mm .pl-2 {
-    padding-left: 0;
-  }
-}
-
-/* -- ATURAN UNTUK KONTEN DI DALAM STRUK -- */
-.struk-content {
+  .printable-area {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    box-sizing: border-box;
-    padding: 0 2mm;
-}
-
-/* -- JURUS UNTUK MELURUSKAN SEMUA UKURAN KERTAS -- */
-@media print {
-  .print-only .flex.justify-between {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px;
-  }
-  .print-only .flex.justify-between span:first-child {
-    text-align: left;
-    white-space: nowrap;
-  }
-  .print-only .flex.justify-between span:last-child {
-    text-align: right;
-  }
-  .print-only .pl-2 {
-    padding-left: 0;
   }
 }
