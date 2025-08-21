@@ -83,6 +83,29 @@ function App() {
     useEffect(() => { localStorage.setItem('dataKasbon', JSON.stringify(kasbon)); }, [kasbon]);
     useEffect(() => { localStorage.setItem('pembayaranKasbon', JSON.stringify(pembayaranKasbon)); }, [pembayaranKasbon]);
     useEffect(() => { localStorage.setItem('riwayatGajian', JSON.stringify(riwayatGajian)); }, [riwayatGajian]);
+
+    // --- BARU: LOGIKA CETAK DENGAN USEEFFECT ---
+    // Efek ini akan berjalan SETELAH state `dataUntukSlipGaji` di-update dan komponen selesai render
+    useEffect(() => {
+        if (dataUntukSlipGaji) {
+            window.print();
+            // Membersihkan state agar tidak memicu print lagi saat render ulang
+            setDataUntukSlipGaji(null);
+        }
+    }, [dataUntukSlipGaji]);
+
+    // Terapkan pola yang sama untuk cetak ulang struk kasbon dari halaman Laporan
+    // State `dataUntukStrukKasbon` juga digunakan oleh modal sukses, jadi kita perlu bedakan
+    // Tapi karena `handleCetakStrukKasbon` hanya dipanggil dari Laporan, kita bisa buatkan effect terpisah
+    useEffect(() => {
+        // Kita asumsikan jika `dataUntukStrukKasbon` di-set TANPA modal sukses terbuka, itu artinya cetak ulang
+        if (dataUntukStrukKasbon && !isSuksesKasbonModalOpen) {
+            window.print();
+            setDataUntukStrukKasbon(null);
+        }
+    }, [dataUntukStrukKasbon, isSuksesKasbonModalOpen]);
+    // --- AKHIR BLOK PERUBAHAN ---
+
     const showNotification = (message, type = 'success') => { setNotification({ show: true, message, type }); setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000); };
     const formatCurrency = (number) => { if (isNaN(number)) return "Rp 0"; return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number); };
     const formatDate = (dateString) => { if (!dateString) return ''; const options = { year: 'numeric', month: 'long', day: 'numeric' }; return new Date(dateString).toLocaleDateString('id-ID', options); };
@@ -112,9 +135,30 @@ function App() {
     const handleKasbonCancel = (kasbonId) => { handleKonfirmasi("Batalkan Kasbon?", "Tindakan ini akan membatalkan kasbon. Kasbon yang sudah dibatalkan tidak akan dihitung dalam penggajian. Yakin?", () => { setKasbon(prevKasbon => prevKasbon.map(k => k.id === kasbonId ? { ...k, status: 'dibatalkan' } : k)); showNotification("Data kasbon berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const handleTransaksiSubmit = (formData) => { let newTransaksiData; if (editingTransaksi) { const updatedTransaksi = { ...editingTransaksi, ...formData }; setTransaksi(transaksi.map(t => t.id === editingTransaksi.id ? updatedTransaksi : t)); newTransaksiData = updatedTransaksi; showNotification("Transaksi berhasil diperbarui!"); } else { newTransaksiData = { id: Date.now(), ...formData, sudahDibayar: false }; setTransaksi(prev => [...prev, newTransaksiData]); showNotification("Transaksi baru berhasil disimpan!"); } setDataUntukStruk(newTransaksiData); closeTransaksiModal(); setIsSuksesModalOpen(true); };
     const handleKasbonSubmit = (formData) => { let newKasbonData; if (editingKasbon) { const updatedKasbon = { ...editingKasbon, ...formData }; setKasbon(kasbon.map(k => k.id === editingKasbon.id ? updatedKasbon : k)); newKasbonData = updatedKasbon; showNotification("Data kasbon berhasil diperbarui!"); } else { newKasbonData = { id: Date.now(), ...formData, status: 'aktif' }; setKasbon(prev => [...prev, newKasbonData]); showNotification("Kasbon baru berhasil ditambahkan!"); } setDataUntukStrukKasbon(newKasbonData); closeKasbonModal(); setIsSuksesKasbonModalOpen(true); };
-    const handleCetakSlip = (riwayatId) => { const dataSlip = riwayatGajian.find(r => r.id === riwayatId); if (dataSlip) { setDataUntukSlipGaji(dataSlip); setTimeout(() => { window.print(); setDataUntukSlipGaji(null); }, 100); } };
-    const handleCetakStrukKasbon = (kasbonId) => { const dataStruk = kasbon.find(k => k.id === kasbonId); if (dataStruk) { setDataUntukStrukKasbon(dataStruk); setTimeout(() => { window.print(); setDataUntukStrukKasbon(null); }, 100); } };
-    const handleCetakSlipMassal = () => { window.print(); setDataUntukSlipGajiMassal(null); setIsSuksesGajianModalOpen(false); };
+
+    // --- FUNGSI DIPERBARUI: Hanya set state, useEffect yang akan print ---
+    const handleCetakSlip = (riwayatId) => {
+        const dataSlip = riwayatGajian.find(r => r.id === riwayatId);
+        if (dataSlip) {
+            setDataUntukSlipGaji(dataSlip);
+        }
+    };
+    
+    // --- FUNGSI DIPERBARUI: Hanya set state, useEffect yang akan print ---
+    const handleCetakStrukKasbon = (kasbonId) => {
+        const dataStruk = kasbon.find(k => k.id === kasbonId);
+        if (dataStruk) {
+            setDataUntukStrukKasbon(dataStruk);
+        }
+    };
+    
+    // Fungsi ini dipanggil dari modal, jadi flow-nya sudah aman, tidak perlu diubah.
+    const handleCetakSlipMassal = () => { 
+        window.print(); 
+        setDataUntukSlipGajiMassal(null); 
+        setIsSuksesGajianModalOpen(false); 
+    };
+
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const getAllData = () => ({ pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian, authData });
@@ -185,7 +229,7 @@ function App() {
                 {isTransaksiModalOpen && <ModalTransaksi pegawai={pegawai} produk={produk} editingTransaksi={editingTransaksi} handleSubmit={handleTransaksiSubmit} closeModal={closeTransaksiModal} formatCurrency={formatCurrency} showNotification={showNotification} />}
                 {isKasbonModalOpen && <ModalKasbon pegawai={pegawai} editingKasbon={editingKasbon} handleSubmit={handleKasbonSubmit} closeModal={closeKasbonModal} formatCurrency={formatCurrency} />}
             </div>
-            <div className="print-only struk-visible">
+            <div className="print-only">
                 {dataUntukStruk && (
                     <StrukTransaksi 
                         transaksi={dataUntukStruk} 
