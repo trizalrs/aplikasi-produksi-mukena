@@ -1,18 +1,18 @@
 import React from 'react';
-import logo from '../assets/logo.jpg'; // <-- BARU: Impor logo
+import logo from '../assets/logo.jpg';
 
 function SlipGaji({ data, formatCurrency, formatDate, paperSize }) {
     if (!data) return null;
     const { pegawaiNama, periodeAwal, periodeAkhir, tanggalProses, totalUpah, totalKasbon, bayarKasbon, sisaKasbon, gajiDiterima } = data;
     return (
-        <div className={`print-only font-struk text-xs text-black bg-white page-break-after struk-${paperSize}`}>
+        // --- PERUBAHAN: Tambahkan ID unik di sini ---
+        <div id="slip-gaji-to-print" className={`print-only font-struk text-xs text-black bg-white page-break-after struk-${paperSize}`}>
             <div className="struk-content">
                 <div className="text-center mb-2">
-                    <img src={logo} alt="Logo Perusahaan" className="mx-auto mb-2" style={{ maxWidth: '60px' }} /> {/* <-- DIPERBARUI */}
+                    <img src={logo} alt="Logo Perusahaan" className="mx-auto mb-2" style={{ maxWidth: '60px' }} />
                     <h2 className="font-bold text-sm">SLIP GAJI PEGAWAI</h2>
                     <p>PT HR Moslem</p>
                 </div>
-                {/* ... sisa kode tidak berubah ... */}
                 <hr className="border-t border-dashed border-black my-1" />
                 <div className="flex justify-between"><span>Tanggal Cetak:</span><span>{formatDate(tanggalProses)}</span></div>
                 <div className="flex justify-between"><span>Periode:</span><span>{formatDate(periodeAwal)} s/d {formatDate(periodeAkhir)}</span></div>
