@@ -32,6 +32,7 @@ import ModalSuksesKasbon from './components/ModalSuksesKasbon';
 import StrukKasbon from './components/StrukKasbon';
 import SlipGaji from './components/SlipGaji';
 import ModalSuksesGajian from './components/ModalSuksesGajian';
+import ModalPrintPreview from './components/ModalPrintPreview'; // <-- BARU: Impor Modal Pratinjau
 
 const getInitialState = (key, defaultValue = []) => {
     try {
@@ -42,9 +43,9 @@ const getInitialState = (key, defaultValue = []) => {
 };
 
 function App() {
+    // ... (Semua state Anda yang sudah ada) ...
     const { isAuthenticated, authData, setup, login, logout, setAuthData } = useAuth();
     const driveRef = useRef();
-
     const [activeMenu, setActiveMenu] = useState('dashboard');
     const [pegawai, setPegawai] = useState(() => getInitialState('dataPegawai'));
     const [produk, setProduk] = useState(() => getInitialState('dataProduk'));
@@ -77,52 +78,34 @@ function App() {
     const [dataUntukSlipGaji, setDataUntukSlipGaji] = useState(null);
     const [dataUntukSlipGajiMassal, setDataUntukSlipGajiMassal] = useState(null);
     
-    // --- BARU: State untuk mode cetak gambar ---
-    const [isPrintingMode, setIsPrintingMode] = useState(false);
-    const [printableImageData, setPrintableImageData] = useState(null);
-    const [printTarget, setPrintTarget] = useState({ type: null, id: null });
+    // --- BARU: State untuk mengelola modal pratinjau dan datanya ---
+    const [previewModalData, setPreviewModalData] = useState({ isOpen: false, imageData: null });
+    const [printTrigger, setPrintTrigger] = useState({ type: null, id: null });
 
-    // --- BARU: useEffect untuk menangani proses render ke gambar dan cetak ---
+    // --- BARU: useEffect untuk menangani konversi HTML ke Gambar ---
     useEffect(() => {
-        if (printTarget.type && printTarget.id) {
+        if (printTrigger.type && printTrigger.id) {
             setTimeout(() => {
-                const elementId = `${printTarget.type}-to-print`;
+                const elementId = `${printTrigger.type}-to-print`;
                 const input = document.getElementById(elementId);
+                
                 if (input) {
-                    html2canvas(input, { 
-                        scale: 3, // Meningkatkan resolusi gambar agar tidak pecah
-                        useCORS: true, 
-                        backgroundColor: '#ffffff'
-                    }).then((canvas) => {
-                        const imgData = canvas.toDataURL('image/png');
-                        setPrintableImageData(imgData);
-                        setIsPrintingMode(true);
-                    });
+                    html2canvas(input, { scale: 3, useCORS: true, backgroundColor: '#ffffff' })
+                        .then((canvas) => {
+                            const imgData = canvas.toDataURL('image/png');
+                            setPreviewModalData({ isOpen: true, imageData: imgData });
+                        });
                 }
-                // Reset state pemicu
-                setPrintTarget({ type: null, id: null });
+                // Reset pemicu dan data sementara
+                setPrintTrigger({ type: null, id: null });
                 setDataUntukSlipGaji(null);
                 setDataUntukStrukKasbon(null);
                 setDataUntukStruk(null);
-            }, 150); // Delay untuk memastikan DOM ter-update
+            }, 150);
         }
-    }, [printTarget]);
+    }, [printTrigger]);
 
-    // --- BARU: useEffect untuk memanggil window.print() saat gambar siap ---
-    useEffect(() => {
-        if (isPrintingMode && printableImageData) {
-            // Panggil print() setelah state di-set dan komponen gambar dirender
-            window.print();
-            
-            // Kembalikan ke UI normal setelah dialog print muncul/ditutup
-            // Diberi sedikit jeda untuk memastikan proses print selesai dikirim ke OS/Aplikasi
-            setTimeout(() => {
-                setIsPrintingMode(false);
-                setPrintableImageData(null);
-            }, 500);
-        }
-    }, [isPrintingMode, printableImageData]);
-
+    // ... (useEffect untuk localStorage biarkan seperti semula) ...
     useEffect(() => { localStorage.setItem('paperSize', paperSize); }, [paperSize]);
     useEffect(() => { localStorage.setItem('dataPegawai', JSON.stringify(pegawai)); }, [pegawai]);
     useEffect(() => { localStorage.setItem('dataProduk', JSON.stringify(produk)); }, [produk]);
@@ -131,17 +114,44 @@ function App() {
     useEffect(() => { localStorage.setItem('pembayaranKasbon', JSON.stringify(pembayaranKasbon)); }, [pembayaranKasbon]);
     useEffect(() => { localStorage.setItem('riwayatGajian', JSON.stringify(riwayatGajian)); }, [riwayatGajian]);
 
+    // ... (Fungsi helper tidak berubah) ...
     const showNotification = (message, type = 'success') => { setNotification({ show: true, message, type }); setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000); };
     const formatCurrency = (number) => { if (isNaN(number)) return "Rp 0"; return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number); };
     const formatDate = (dateString) => { if (!dateString) return ''; const options = { year: 'numeric', month: 'long', day: 'numeric' }; return new Date(dateString).toLocaleDateString('id-ID', options); };
     const handleKonfirmasi = (title, message, onConfirm) => { setKonfirmasi({ isOpen: true, title, message, onConfirm }); };
     const resetKonfirmasi = () => { setKonfirmasi({ isOpen: false, title: '', message: '', onConfirm: () => {} }); };
+    
+    // --- BARU: Fungsi untuk Share Gambar ---
+    const handleShareImage = async () => {
+        if (!previewModalData.imageData || !navigator.share) {
+            showNotification("Fitur share tidak didukung di browser ini.", "error");
+            return;
+        }
+
+        try {
+            // Ubah data URL (base64) menjadi File object
+            const response = await fetch(previewModalData.imageData);
+            const blob = await response.blob();
+            const file = new File([blob], 'struk.png', { type: 'image/png' });
+
+            await navigator.share({
+                title: 'Struk',
+                text: 'Berikut adalah struk bukti.',
+                files: [file],
+            });
+        } catch (error) {
+            console.error('Gagal share:', error);
+            showNotification("Gagal membagikan gambar.", "error");
+        }
+    };
+    
+    // ... (semua fungsi handle CRUD biarkan seperti semula) ...
     const handlePegawaiInputChange = (e) => setFormPegawaiData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handlePegawaiSubmit = (e) => { e.preventDefault(); if (!formPegawaiData.nama || !formPegawaiData.kontak) { showNotification("Nama dan Kontak wajib diisi!", "error"); return; } if (editingPegawai) { setPegawai(pegawai.map(p => p.id === editingPegawai.id ? { ...p, ...formPegawaiData } : p)); showNotification("Data pegawai diperbarui!"); } else { setPegawai([...pegawai, { id: Date.now(), ...formPegawaiData }]); showNotification("Pegawai baru ditambahkan!"); } closePegawaiModal(); };
     const openPegawaiModal = (p = null) => { setEditingPegawai(p); setFormPegawaiData(p ? { nama: p.nama, alamat: p.alamat, kontak: p.kontak, status: p.status } : { nama: '', alamat: '', kontak: '', status: 'Aktif' }); setIsPegawaiModalOpen(true); };
     const closePegawaiModal = () => setIsPegawaiModalOpen(false);
     const handlePegawaiDelete = (id) => { const hasTransaksi = transaksi.some(t => t.pegawaiId === id); const hasKasbon = kasbon.some(k => k.pegawaiId === id); if (hasTransaksi || hasKasbon) { showNotification("Pegawai tidak bisa dihapus karena memiliki riwayat transaksi/kasbon.", "error"); return; } handleKonfirmasi("Hapus Pegawai?", "Apakah Anda yakin ingin menghapus data pegawai ini?", () => { setPegawai(pegawai.filter(p => p.id !== id)); showNotification("Data pegawai dihapus.", "warning"); resetKonfirmasi(); }); };
-    const handleProdukNameChange = (e) => setFormPegawaiData(prev => ({ ...prev, namaProduk: e.target.value }));
+    const handleProdukNameChange = (e) => setFormProdukData(prev => ({ ...prev, namaProduk: e.target.value }));
     const handleGroupChange = (groupId, e) => { const newGroups = formProdukData.variantGroups.map(g => g.id === groupId ? { ...g, namaGrup: e.target.value } : g); setFormProdukData(prev => ({ ...prev, variantGroups: newGroups })); };
     const handleVariantChange = (groupId, variantId, e) => { const { name, value } = e.target; const newGroups = formProdukData.variantGroups.map(g => { if (g.id === groupId) { const newVariants = g.variants.map(v => v.id === variantId ? { ...v, [name]: value } : v); return { ...g, variants: newVariants }; } return g; }); setFormProdukData(prev => ({ ...prev, variantGroups: newGroups })); };
     const addGroup = () => setFormProdukData(prev => ({...prev, variantGroups: [...prev.variantGroups, { id: Date.now(), namaGrup: '', variants: [{ id: Date.now(), namaVarian: '', upah: '' }] }]}));
@@ -158,25 +168,20 @@ function App() {
     const openKasbonModal = (kasbonToEdit = null) => { setEditingKasbon(kasbonToEdit); setIsKasbonModalOpen(true); };
     const closeKasbonModal = () => { setEditingKasbon(null); setIsKasbonModalOpen(false); };
     const handleKasbonCancel = (kasbonId) => { handleKonfirmasi("Batalkan Kasbon?", "Tindakan ini akan membatalkan kasbon. Kasbon yang sudah dibatalkan tidak akan dihitung dalam penggajian. Yakin?", () => { setKasbon(prevKasbon => prevKasbon.map(k => k.id === kasbonId ? { ...k, status: 'dibatalkan' } : k)); showNotification("Data kasbon berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
-    
-    // --- FUNGSI SUBMIT Disederhanakan untuk memanggil modal sukses ---
     const handleTransaksiSubmit = (formData) => { let newTransaksiData; if (editingTransaksi) { const updatedTransaksi = { ...editingTransaksi, ...formData }; setTransaksi(transaksi.map(t => t.id === editingTransaksi.id ? updatedTransaksi : t)); newTransaksiData = updatedTransaksi; showNotification("Transaksi berhasil diperbarui!"); } else { newTransaksiData = { id: Date.now(), ...formData, sudahDibayar: false }; setTransaksi(prev => [...prev, newTransaksiData]); showNotification("Transaksi baru berhasil disimpan!"); } setDataUntukStruk(newTransaksiData); closeTransaksiModal(); setIsSuksesModalOpen(true); };
     const handleKasbonSubmit = (formData) => { let newKasbonData; if (editingKasbon) { const updatedKasbon = { ...editingKasbon, ...formData }; setKasbon(kasbon.map(k => k.id === editingKasbon.id ? updatedKasbon : k)); newKasbonData = updatedKasbon; showNotification("Data kasbon berhasil diperbarui!"); } else { newKasbonData = { id: Date.now(), ...formData, status: 'aktif' }; setKasbon(prev => [...prev, newKasbonData]); showNotification("Kasbon baru berhasil ditambahkan!"); } setDataUntukStrukKasbon(newKasbonData); closeKasbonModal(); setIsSuksesKasbonModalOpen(true); };
-
-    // --- BARU: Fungsi untuk memicu proses cetak gambar ---
     const handleCetakGambar = (type, id) => {
         if (type === 'slip') {
             const data = riwayatGajian.find(r => r.id === id);
-            if (data) { setDataUntukSlipGaji(data); setPrintTarget({ type: 'slip-gaji', id }); }
+            if (data) { setDataUntukSlipGaji(data); setPrintTrigger({ type: 'slip-gaji', id }); }
         } else if (type === 'kasbon') {
             const data = kasbon.find(k => k.id === id);
-            if (data) { setDataUntukStrukKasbon(data); setPrintTarget({ type: 'struk-kasbon', id }); }
+            if (data) { setDataUntukStrukKasbon(data); setPrintTrigger({ type: 'struk-kasbon', id }); }
         } else if (type === 'transaksi') {
             const data = transaksi.find(t => t.id === id);
-            if(data) { setDataUntukStruk(data); setPrintTarget({ type: 'struk-transaksi', id }); }
+            if(data) { setDataUntukStruk(data); setPrintTrigger({ type: 'struk-transaksi', id }); }
         }
     };
-    
     const handleCetakSlipMassal = () => { window.print(); setDataUntukSlipGajiMassal(null); setIsSuksesGajianModalOpen(false); };
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
@@ -186,29 +191,22 @@ function App() {
     const handleRestoreLokal = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const restoredData = JSON.parse(event.target.result); handleKonfirmasi("Pulihkan Data Lokal?", "PERINGATAN: Ini akan menimpa semua data yang ada di perangkat ini. Lanjutkan?", () => { restoreAllData(restoredData); resetKonfirmasi(); }); } catch (error) { showNotification(`Gagal memulihkan data: ${error.message}`, "error"); } finally { e.target.value = null; } }; reader.readAsText(file); };
     const handleAppLogout = () => { const isDriveConnected = driveRef.current?.isConnected; const message = isDriveConnected ? 'Data terbaru akan di-backup ke Google Drive sebelum logout. Lanjutkan?' : 'Apakah Anda yakin ingin logout?'; handleKonfirmasi('Logout', message, () => { resetKonfirmasi(); if (isDriveConnected) { driveRef.current.backup().then(() => { showNotification('Backup berhasil! Anda akan logout...', 'success'); setTimeout(() => logout(), 2000); }).catch(err => { showNotification('Backup gagal, logout dibatalkan. Silakan coba lagi.', 'error'); }); } else { logout(); } }); };
 
-    // --- BARU: Logika Render Kondisional untuk Mode Cetak ---
-    if (isPrintingMode && printableImageData) {
-        return (
-            <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <img src={printableImageData} alt="Struk untuk dicetak" style={{ maxWidth: '100%', maxHeight: '100%' }} />
-            </div>
-        );
-    }
-    
     if (!isAuthenticated) {
         return <LoginPage authData={authData} onSetup={setup} onLogin={login} />;
     }
 
     return (
         <>
+            <ModalPrintPreview 
+                imageData={previewModalData.imageData}
+                isOpen={previewModalData.isOpen}
+                onShare={handleShareImage}
+                onClose={() => setPreviewModalData({ isOpen: false, imageData: null })}
+            />
             <div className="main-app">
                 {notification.show && ( <div className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white z-50 ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'warning' ? 'bg-yellow-500' : 'bg-red-500'}`}> {notification.message} </div> )}
-                
-                {/* --- PERUBAHAN: Teruskan handleCetakGambar ke Modal --- */}
-                <ModalSuksesTransaksi isOpen={isSuksesModalOpen} closeModal={() => setIsSuksesModalOpen(false)} dataTransaksi={dataUntukStruk} handleCetakGambar={handleCetakGambar} />
-                <ModalSuksesKasbon isOpen={isSuksesKasbonModalOpen} closeModal={() => setIsSuksesKasbonModalOpen(false)} dataKasbon={dataUntukStrukKasbon} handleCetakGambar={handleCetakGambar} />
-                
-                {/* ... (sisa modal dan komponen lain) ... */}
+                <ModalSuksesTransaksi isOpen={isSuksesModalOpen} closeModal={() => setIsSuksesModalOpen(false)} dataTransaksi={dataUntukStruk} handleCetakGambar={handleCetakGambar} setDataUntukStruk={setDataUntukStruk} />
+                <ModalSuksesKasbon isOpen={isSuksesKasbonModalOpen} closeModal={() => setIsSuksesKasbonModalOpen(false)} dataKasbon={dataUntukStrukKasbon} handleCetakGambar={handleCetakGambar} setDataUntukStrukKasbon={setDataUntukStrukKasbon} />
                 <ModalKonfirmasi isOpen={konfirmasi.isOpen} title={konfirmasi.title} message={konfirmasi.message} onConfirm={konfirmasi.onConfirm} onCancel={resetKonfirmasi} />
                 <ModalSuksesGajian isOpen={isSuksesGajianModalOpen} closeModal={() => { setIsSuksesGajianModalOpen(false); setDataUntukSlipGajiMassal(null); }} handlePrint={handleCetakSlipMassal} />
                 
@@ -262,7 +260,6 @@ function App() {
                 {isKasbonModalOpen && <ModalKasbon pegawai={pegawai} editingKasbon={editingKasbon} handleSubmit={handleKasbonSubmit} closeModal={closeKasbonModal} formatCurrency={formatCurrency} />}
             </div>
             
-            {/* --- PERUBAHAN: Area ini sekarang untuk me-render komponen secara tersembunyi sebelum di-capture --- */}
             <div className="print-only" style={{ opacity: 0, position: 'fixed', top: '-200vh', left: 0, zIndex: -100 }}>
                 <StrukTransaksi transaksi={dataUntukStruk} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} />
                 <StrukKasbon kasbon={dataUntukStrukKasbon} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} />
