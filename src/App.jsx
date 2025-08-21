@@ -206,7 +206,7 @@ function App() {
                 <main className="container mx-auto p-4 md:p-8">
                     {activeMenu === 'dashboard' && <PageDashboard pegawai={pegawai} transaksi={transaksi} kasbon={kasbon} formatCurrency={formatCurrency} formatDate={formatDate} />}
                     {activeMenu === 'pegawai' && <PagePegawai pegawai={pegawai} openModal={openPegawaiModal} handleDelete={handlePegawaiDelete} />}
-                    {activeMenu === 'produk' && <PageProduk produk={produk} openModal={openModal} handleDelete={handleProdukDelete} formatCurrency={formatCurrency} />}
+                    {activeMenu === 'produk' && <PageProduk produk={produk} openModal={openProdukModal} handleDelete={handleProdukDelete} formatCurrency={formatCurrency} />}
                     {activeMenu === 'transaksi' && <PageTransaksi transaksi={transaksi} openModal={openTransaksiModal} handleDelete={handleTransaksiDelete} formatCurrency={formatCurrency} formatDate={formatDate} pegawai={pegawai} />}
                     {activeMenu === 'kasbon' && <PageKasbon pegawai={pegawai} kasbon={kasbon} pembayaranKasbon={pembayaranKasbon} openModal={openKasbonModal} formatCurrency={formatCurrency} formatDate={formatDate} handleKasbonCancel={handleKasbonCancel} />}
                     {activeMenu === 'penggajian' && <PagePenggajian pegawai={pegawai} transaksi={transaksi} kasbon={kasbon} pembayaranKasbon={pembayaranKasbon} formatCurrency={formatCurrency} reportFilters={reportFilters} setReportFilters={setReportFilters} reportData={reportData} setReportData={setReportData} showReport={showReport} setShowReport={setShowReport} handleProsesGajian={handleProsesGajian} showNotification={showNotification} />}
