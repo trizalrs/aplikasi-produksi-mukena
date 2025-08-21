@@ -46,6 +46,7 @@ function App() {
     const { isAuthenticated, authData, setup, login, logout, setAuthData } = useAuth();
     const driveRef = useRef();
 
+    // State Management
     const [activeMenu, setActiveMenu] = useState('dashboard');
     const [pegawai, setPegawai] = useState(() => getInitialState('dataPegawai'));
     const [produk, setProduk] = useState(() => getInitialState('dataProduk'));
@@ -77,7 +78,25 @@ function App() {
     const [isSuksesGajianModalOpen, setIsSuksesGajianModalOpen] = useState(false);
     const [dataUntukSlipGaji, setDataUntukSlipGaji] = useState(null);
     const [dataUntukSlipGajiMassal, setDataUntukSlipGajiMassal] = useState(null);
+
+    // -- FUNGSI CETAK CERDAS DENGAN JAVASCRIPT --
+    const handleSmartPrint = () => {
+        const mainApp = document.querySelector('.main-app');
+        const printOnly = document.querySelector('.print-only');
+        
+        if (mainApp && printOnly) {
+            mainApp.style.display = 'none';
+            printOnly.style.display = 'block';
+
+            setTimeout(() => {
+                window.print();
+                mainApp.style.display = 'block';
+                printOnly.style.display = 'none';
+            }, 100);
+        }
+    };
     
+    // -- FUNGSI LAMA DIGANTI DENGAN YANG BARU --
     useEffect(() => { localStorage.setItem('paperSize', paperSize); }, [paperSize]);
     useEffect(() => { localStorage.setItem('dataPegawai', JSON.stringify(pegawai)); }, [pegawai]);
     useEffect(() => { localStorage.setItem('dataProduk', JSON.stringify(produk)); }, [produk]);
@@ -114,9 +133,6 @@ function App() {
     const handleKasbonCancel = (kasbonId) => { handleKonfirmasi("Batalkan Kasbon?", "Tindakan ini akan membatalkan kasbon. Kasbon yang sudah dibatalkan tidak akan dihitung dalam penggajian. Yakin?", () => { setKasbon(prevKasbon => prevKasbon.map(k => k.id === kasbonId ? { ...k, status: 'dibatalkan' } : k)); showNotification("Data kasbon berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const handleTransaksiSubmit = (formData) => { let newTransaksiData; if (editingTransaksi) { const updatedTransaksi = { ...editingTransaksi, ...formData }; setTransaksi(transaksi.map(t => t.id === editingTransaksi.id ? updatedTransaksi : t)); newTransaksiData = updatedTransaksi; showNotification("Transaksi berhasil diperbarui!"); } else { newTransaksiData = { id: Date.now(), ...formData, sudahDibayar: false }; setTransaksi(prev => [...prev, newTransaksiData]); showNotification("Transaksi baru berhasil disimpan!"); } setDataUntukStruk(newTransaksiData); closeTransaksiModal(); setIsSuksesModalOpen(true); };
     const handleKasbonSubmit = (formData) => { let newKasbonData; if (editingKasbon) { const updatedKasbon = { ...editingKasbon, ...formData }; setKasbon(kasbon.map(k => k.id === editingKasbon.id ? updatedKasbon : k)); newKasbonData = updatedKasbon; showNotification("Data kasbon berhasil diperbarui!"); } else { newKasbonData = { id: Date.now(), ...formData, status: 'aktif' }; setKasbon(prev => [...prev, newKasbonData]); showNotification("Kasbon baru berhasil ditambahkan!"); } setDataUntukStrukKasbon(newKasbonData); closeKasbonModal(); setIsSuksesKasbonModalOpen(true); };
-    const handleCetakSlip = (riwayatId) => { const dataSlip = riwayatGajian.find(r => r.id === riwayatId); if (dataSlip) { setDataUntukSlipGaji(dataSlip); setTimeout(() => { handleSmartPrint(); setDataUntukSlipGaji(null); }, 50); } };
-    const handleCetakStrukKasbon = (kasbonId) => { const dataStruk = kasbon.find(k => k.id === kasbonId); if (dataStruk) { setDataUntukStrukKasbon(dataStruk); setTimeout(() => { handleSmartPrint(); setDataUntukStrukKasbon(null); }, 50); } };
-    const handleCetakSlipMassal = () => { if (dataUntukSlipGajiMassal?.length > 0) { setTimeout(() => { handleSmartPrint(); setDataUntukSlipGajiMassal(null); }, 50); } };
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const getAllData = () => ({ pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian, authData });
