@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { gapi } from 'gapi-script';
-import { XCircleIcon, UserIcon } from './Icons'; // <-- Tambahkan UserIcon
+import { XCircleIcon, UserIcon } from './Icons'; // Pastikan UserIcon diimpor
 
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile';
 const FILENAME = 'database-produksi-mukena.json';
 
 const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotification, handleKonfirmasi, resetKonfirmasi }, ref) => {
@@ -31,7 +31,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         gapi.load('client:auth2', start);
     }, []);
 
-    // <-- DIPERBARUI: Disederhanakan, tidak lagi mengunduh gambar -->
+    // <-- FUNGSI DIPERBARUI: Disederhanakan, hanya mengambil nama, tidak ada gambar -->
     const fetchUserInfo = useCallback(async (accessToken) => {
         try {
             const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -45,7 +45,6 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         } catch (error) {
             console.error(error);
             showNotification(error.message, 'error');
-            // Jika gagal, pastikan user di-logout dari sesi Google
             setUser(null);
             setToken(null);
             localStorage.removeItem('googleUser');
@@ -72,30 +71,70 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
                 if (storedUser) {
                     setToken(tokenData);
                     setUser(JSON.parse(storedUser));
-                } else {
-                    // Jika token ada tapi user tidak ada (gagal fetch sebelumnya), coba lagi
-                    fetchUserInfo(tokenData.access_token);
                 }
             }
         }
-    }, [isGapiReady, fetchUserInfo]);
+    }, [isGapiReady]);
 
     const handleDisconnect = () => { handleKonfirmasi('Putuskan Hubungan?', 'Anda akan diputuskan dari Google Drive.', () => { resetKonfirmasi(); setUser(null); setToken(null); localStorage.removeItem('googleUser'); localStorage.removeItem('googleToken'); showNotification('Hubungan dengan Google Drive telah diputuskan.', 'warning'); }); };
     const findFileId = async () => { try { const res = await gapi.client.drive.files.list({ q: `name='${FILENAME}' and trashed=false`, fields: 'files(id, name)', spaces: 'appDataFolder', }); return res.result.files?.length > 0 ? res.result.files[0].id : null; } catch (err) { console.error("Error finding file:", err); throw err; } };
     
-    const handleBackup = useCallback(async () => { if (!token) { showNotification('Harap hubungkan ke Google Drive.', 'error'); return Promise.reject(); } setIsProcessing(true); showNotification('Memulai backup...', 'warning'); try { const fileId = await findFileId(); const dataToBackup = getAllData(); const jsonData = JSON.stringify(dataToBackup, null, 2); const blob = new Blob([jsonData], { type: 'application/json' }); const metadata = { name: FILENAME, mimeType: 'application/json' }; if (!fileId) { metadata.parents = ['appDataFolder']; } const form = new FormData(); form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'})); form.append('file', blob); let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'; let method = 'POST'; if (fileId) { url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`; method = 'PATCH'; } const res = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token.access_token}` }, body: form }); if (!res.ok) throw new Error('Proses upload gagal.'); showNotification(fileId ? 'Backup berhasil diperbarui!' : 'File backup baru berhasil dibuat!', 'success'); return Promise.resolve(); } catch (error) { showNotification(`Backup Gagal: ${error.message}`, 'error'); return Promise.reject(error); } finally { setIsProcessing(false); } }, [token, getAllData, showNotification]);
+    const handleBackup = useCallback(async () => {
+        if (!token) { showNotification('Harap hubungkan ke Google Drive.', 'error'); return Promise.reject(new Error('Token tidak valid')); }
+        setIsProcessing(true);
+        showNotification('Memulai backup...', 'warning');
+        try {
+            const fileId = await findFileId();
+            const dataToBackup = getAllData();
+            const jsonData = JSON.stringify(dataToBackup, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const metadata = { name: FILENAME, mimeType: 'application/json' };
+            if (!fileId) { metadata.parents = ['appDataFolder']; }
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
+            form.append('file', blob);
+            let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+            let method = 'POST';
+            if (fileId) { url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`; method = 'PATCH'; }
+            const res = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token.access_token}` }, body: form });
+            if (!res.ok) {
+                const errorBody = await res.json();
+                throw new Error(errorBody.error.message || 'Proses upload gagal.');
+            }
+            showNotification(fileId ? 'Backup berhasil diperbarui!' : 'File backup baru berhasil dibuat!', 'success');
+            return Promise.resolve();
+        } catch (error) {
+            showNotification(`Backup Gagal: ${error.message}`, 'error');
+            return Promise.reject(error);
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [token, getAllData, showNotification]);
 
     useImperativeHandle(ref, () => ({ backup: handleBackup, isConnected: !!user, }));
-    const handleRestore = () => { if (!token) { showNotification('Harap hubungkan ke Google Drive.', 'error'); return; } handleKonfirmasi('Restore dari Drive?', 'Ini akan menimpa semua data saat ini. Lanjutkan?', async () => { resetKonfirmasi(); setIsProcessing(true); showNotification('Mencari data...', 'warning'); try { const fileId = await findFileId(); if (!fileId) { showNotification('File backup tidak ditemukan.', 'error'); setIsProcessing(false); return; } const res = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' }); restoreAllData(JSON.parse(res.body)); } catch (error) { showNotification(`Restore Gagal: ${error.message}`, 'error'); } finally { setIsProcessing(false); } }); };
+    const handleRestore = () => { if (!token) { showNotification('Harap hubungkan ke Google Drive.', 'error'); return; } handleKonfirmasi('Restore dari Drive?', 'Ini akan menimpa semua data saat ini. Lanjutkan?', async () => { resetKonfirmasi(); setIsProcessing(true); showNotification('Mencari data...', 'warning'); try { const fileId = await findFileId(); if (!fileId) { showNotification('File backup tidak ditemukan.', 'error'); setIsProcessing(false); return; } const res = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' }); restoreAllData(JSON.parse(res.body)); } catch (error) { const errorMessage = error.result?.error?.message || error.message; showNotification(`Restore Gagal: ${errorMessage}`, 'error'); } finally { setIsProcessing(false); } }); };
     
     if (!isGapiReady) { return <div className="text-sm text-gray-500 p-2">Menyiapkan layanan Drive...</div>; }
 
-    return ( <div ref={ref} className="flex items-center gap-2"> {user ? ( <> <button onClick={handleBackup} disabled={isProcessing} className="flex-shrink-0 flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:bg-gray-400"> {isProcessing ? 'Memproses...' : 'Backup'} </button> <button onClick={handleRestore} disabled={isProcessing} className="flex-shrink-0 flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:bg-gray-400"> {isProcessing ? 'Memproses...' : 'Restore'} </button> <div onClick={handleDisconnect} className="flex-shrink-0 flex items-center space-x-2 cursor-pointer p-1 rounded-md hover:bg-gray-100" title="Putuskan Hubungan">
-        {/* -- DIPERBARUI: Ganti gambar dengan Ikon -- */}
-        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-            <UserIcon className="w-4 h-4 text-gray-600" />
+    return (
+        <div ref={ref} className="flex items-center gap-2">
+            {user ? (
+                <>
+                    <button onClick={handleBackup} disabled={isProcessing} className="flex-shrink-0 flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:bg-gray-400"> {isProcessing ? 'Memproses...' : 'Backup'} </button>
+                    <button onClick={handleRestore} disabled={isProcessing} className="flex-shrink-0 flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:bg-gray-400"> {isProcessing ? 'Memproses...' : 'Restore'} </button>
+                    <div onClick={handleDisconnect} className="flex-shrink-0 flex items-center space-x-2 cursor-pointer p-1 rounded-md hover:bg-gray-100" title="Putuskan Hubungan">
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                            <UserIcon className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 hidden sm:inline">{user.name}</span>
+                        <XCircleIcon className="w-4 h-4 text-gray-500 hover:text-red-500" />
+                    </div>
+                </>
+            ) : (
+                <button onClick={() => handleLogin()} className="flex-shrink-0 flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-lg text-sm"> Hubungkan ke Google Drive </button>
+            )}
         </div>
-        <span className="text-sm font-medium text-gray-700 hidden sm:inline">{user.name}</span> <XCircleIcon className="w-4 h-4 text-gray-500 hover:text-red-500" /> </div> </> ) : ( <button onClick={() => handleLogin()} className="flex-shrink-0 flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-lg text-sm"> Hubungkan ke Google Drive </button> )} </div> );
+    );
 });
 
 export default GoogleDriveSync;
