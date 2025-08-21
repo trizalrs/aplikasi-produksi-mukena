@@ -185,8 +185,15 @@ function App() {
                 {isTransaksiModalOpen && <ModalTransaksi pegawai={pegawai} produk={produk} editingTransaksi={editingTransaksi} handleSubmit={handleTransaksiSubmit} closeModal={closeTransaksiModal} formatCurrency={formatCurrency} showNotification={showNotification} />}
                 {isKasbonModalOpen && <ModalKasbon pegawai={pegawai} editingKasbon={editingKasbon} handleSubmit={handleKasbonSubmit} closeModal={closeKasbonModal} formatCurrency={formatCurrency} />}
             </div>
-            <div className="print-only">
-                {dataUntukStruk && ( <StrukTransaksi transaksi={dataUntukStruk} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> )}
+            <div className="print-only struk-visible">
+                {dataUntukStruk && (
+                    <StrukTransaksi 
+                        transaksi={dataUntukStruk} 
+                        formatCurrency={formatCurrency} 
+                        formatDate={formatDate} 
+                        paperSize={paperSize} 
+                    />
+                )}
                 {dataUntukStrukKasbon && ( <StrukKasbon kasbon={dataUntukStrukKasbon} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> )}
                 {dataUntukSlipGaji && ( <SlipGaji data={dataUntukSlipGaji} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> )}
                 {dataUntukSlipGajiMassal && dataUntukSlipGajiMassal.map(slip => ( <SlipGaji key={slip.id} data={slip} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> ))}
