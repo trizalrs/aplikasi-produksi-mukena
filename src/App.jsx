@@ -12,7 +12,7 @@ import {
     ChevronDownIcon, SaveIcon, ArchiveIcon, DocumentChartBarIcon, PrinterIcon
 } from './components/Icons';
 
-// Impor Halaman
+// Impor Halaman dan Komponen lainnya...
 import PageDashboard from './components/PageDashboard';
 import PagePegawai from './components/PagePegawai';
 import PageProduk from './components/PageProduk';
@@ -20,8 +20,6 @@ import PageTransaksi from './components/PageTransaksi';
 import PageKasbon from './components/PageKasbon';
 import PagePenggajian from './components/PagePenggajian';
 import PageLaporan from './components/PageLaporan';
-
-// Impor Modal
 import ModalPegawai from './components/ModalPegawai';
 import ModalProduk from './components/ModalProduk';
 import ModalTransaksi from './components/ModalTransaksi';
@@ -46,7 +44,6 @@ function App() {
     const { isAuthenticated, authData, setup, login, logout, setAuthData } = useAuth();
     const driveRef = useRef();
 
-    // State Management
     const [activeMenu, setActiveMenu] = useState('dashboard');
     const [pegawai, setPegawai] = useState(() => getInitialState('dataPegawai'));
     const [produk, setProduk] = useState(() => getInitialState('dataProduk'));
@@ -78,25 +75,7 @@ function App() {
     const [isSuksesGajianModalOpen, setIsSuksesGajianModalOpen] = useState(false);
     const [dataUntukSlipGaji, setDataUntukSlipGaji] = useState(null);
     const [dataUntukSlipGajiMassal, setDataUntukSlipGajiMassal] = useState(null);
-
-    // -- FUNGSI CETAK CERDAS DENGAN JAVASCRIPT --
-    const handleSmartPrint = () => {
-        const mainApp = document.querySelector('.main-app');
-        const printOnly = document.querySelector('.print-only');
-        
-        if (mainApp && printOnly) {
-            mainApp.style.display = 'none';
-            printOnly.style.display = 'block';
-
-            setTimeout(() => {
-                window.print();
-                mainApp.style.display = 'block';
-                printOnly.style.display = 'none';
-            }, 100);
-        }
-    };
     
-    // -- FUNGSI LAMA DIGANTI DENGAN YANG BARU --
     useEffect(() => { localStorage.setItem('paperSize', paperSize); }, [paperSize]);
     useEffect(() => { localStorage.setItem('dataPegawai', JSON.stringify(pegawai)); }, [pegawai]);
     useEffect(() => { localStorage.setItem('dataProduk', JSON.stringify(produk)); }, [produk]);
@@ -133,6 +112,9 @@ function App() {
     const handleKasbonCancel = (kasbonId) => { handleKonfirmasi("Batalkan Kasbon?", "Tindakan ini akan membatalkan kasbon. Kasbon yang sudah dibatalkan tidak akan dihitung dalam penggajian. Yakin?", () => { setKasbon(prevKasbon => prevKasbon.map(k => k.id === kasbonId ? { ...k, status: 'dibatalkan' } : k)); showNotification("Data kasbon berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const handleTransaksiSubmit = (formData) => { let newTransaksiData; if (editingTransaksi) { const updatedTransaksi = { ...editingTransaksi, ...formData }; setTransaksi(transaksi.map(t => t.id === editingTransaksi.id ? updatedTransaksi : t)); newTransaksiData = updatedTransaksi; showNotification("Transaksi berhasil diperbarui!"); } else { newTransaksiData = { id: Date.now(), ...formData, sudahDibayar: false }; setTransaksi(prev => [...prev, newTransaksiData]); showNotification("Transaksi baru berhasil disimpan!"); } setDataUntukStruk(newTransaksiData); closeTransaksiModal(); setIsSuksesModalOpen(true); };
     const handleKasbonSubmit = (formData) => { let newKasbonData; if (editingKasbon) { const updatedKasbon = { ...editingKasbon, ...formData }; setKasbon(kasbon.map(k => k.id === editingKasbon.id ? updatedKasbon : k)); newKasbonData = updatedKasbon; showNotification("Data kasbon berhasil diperbarui!"); } else { newKasbonData = { id: Date.now(), ...formData, status: 'aktif' }; setKasbon(prev => [...prev, newKasbonData]); showNotification("Kasbon baru berhasil ditambahkan!"); } setDataUntukStrukKasbon(newKasbonData); closeKasbonModal(); setIsSuksesKasbonModalOpen(true); };
+    const handleCetakSlip = (riwayatId) => { const dataSlip = riwayatGajian.find(r => r.id === riwayatId); if (dataSlip) { setDataUntukSlipGaji(dataSlip); setTimeout(() => { window.print(); setDataUntukSlipGaji(null); }, 100); } };
+    const handleCetakStrukKasbon = (kasbonId) => { const dataStruk = kasbon.find(k => k.id === kasbonId); if (dataStruk) { setDataUntukStrukKasbon(dataStruk); setTimeout(() => { window.print(); setDataUntukStrukKasbon(null); }, 100); } };
+    const handleCetakSlipMassal = () => { window.print(); setDataUntukSlipGajiMassal(null); setIsSuksesGajianModalOpen(false); };
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const getAllData = () => ({ pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian, authData });
@@ -147,14 +129,28 @@ function App() {
 
     return (
         <>
-            <div className="main-app">
-                <header className="bg-white shadow-md p-4 sticky top-0 z-40 no-print">
+            <div className="main-app no-print">
+                {notification.show && ( <div className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white z-50 ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'warning' ? 'bg-yellow-500' : 'bg-red-500'}`}> {notification.message} </div> )}
+                <ModalKonfirmasi isOpen={konfirmasi.isOpen} title={konfirmasi.title} message={konfirmasi.message} onConfirm={konfirmasi.onConfirm} onCancel={resetKonfirmasi} />
+                <ModalSuksesTransaksi isOpen={isSuksesModalOpen} closeModal={() => setIsSuksesModalOpen(false)} setDataUntukStruk={setDataUntukStruk} />
+                <ModalSuksesKasbon isOpen={isSuksesKasbonModalOpen} closeModal={() => setIsSuksesKasbonModalOpen(false)} setDataUntukStrukKasbon={setDataUntukStrukKasbon} />
+                <ModalSuksesGajian isOpen={isSuksesGajianModalOpen} closeModal={() => { setIsSuksesGajianModalOpen(false); setDataUntukSlipGajiMassal(null); }} handlePrint={handleCetakSlipMassal} />
+                
+                <header className="bg-white shadow-md p-4 sticky top-0 z-40">
                     <div className="container mx-auto flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                        <h1 className="text-xl md:text-2xl font-bold text-gray-800 self-start md:self-center">Aplikasi Produksi Mukena</h1>
+                        <h1 className="text-xl md:text-2xl font-bold text-gray-800 self-start md:self-center">
+                            Aplikasi Produksi Mukena
+                        </h1>
                         <div className="w-full md:w-auto horizontal-scrollbar">
                             <div className="flex items-center whitespace-nowrap gap-2">
                                 <GoogleDriveSync ref={driveRef} getAllData={getAllData} restoreAllData={restoreAllData} showNotification={showNotification} handleKonfirmasi={handleKonfirmasi} resetKonfirmasi={resetKonfirmasi} />
-                                <div className="flex items-center space-x-2 flex-shrink-0"><label className="text-sm font-medium text-gray-600">Ukuran Struk:</label><select value={paperSize} onChange={(e) => setPaperSize(e.target.value)} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="80mm">80mm</option><option value="58mm">58mm</option></select></div>
+                                <div className="flex items-center space-x-2 flex-shrink-0">
+                                    <label className="text-sm font-medium text-gray-600">Ukuran Struk:</label>
+                                    <select value={paperSize} onChange={(e) => setPaperSize(e.target.value)} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                        <option value="80mm">80mm</option>
+                                        <option value="58mm">58mm</option>
+                                    </select>
+                                </div>
                                 <button onClick={handleBackupLokal} className="flex-shrink-0 flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-sm"> <DownloadIcon /> Backup Lokal </button>
                                 <button onClick={() => fileInputRef.current.click()} className="flex-shrink-0 flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm"> <UploadIcon /> Restore Lokal </button>
                                 <input type="file" ref={fileInputRef} onChange={handleRestoreLokal} accept=".json" className="hidden" />
@@ -163,7 +159,8 @@ function App() {
                         </div>
                     </div>
                 </header>
-                <nav className="bg-white shadow-sm horizontal-scrollbar no-print">
+
+                <nav className="bg-white shadow-sm horizontal-scrollbar">
                     <div className="container mx-auto flex whitespace-nowrap">
                         <button onClick={() => setActiveMenu('dashboard')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'dashboard' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}> <ChartPieIcon /> Dashboard </button>
                         <button onClick={() => setActiveMenu('pegawai')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'pegawai' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}> <UserIcon /> Data Pegawai </button>
@@ -174,7 +171,7 @@ function App() {
                         <button onClick={() => setActiveMenu('laporan')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'laporan' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}> <DocumentChartBarIcon /> Laporan </button>
                     </div>
                 </nav>
-                <main className="container mx-auto p-4 md:p-8 no-print">
+                <main className="container mx-auto p-4 md:p-8">
                     {activeMenu === 'dashboard' && <PageDashboard pegawai={pegawai} transaksi={transaksi} kasbon={kasbon} formatCurrency={formatCurrency} formatDate={formatDate} />}
                     {activeMenu === 'pegawai' && <PagePegawai pegawai={pegawai} openModal={openPegawaiModal} handleDelete={handlePegawaiDelete} />}
                     {activeMenu === 'produk' && <PageProduk produk={produk} openModal={openProdukModal} handleDelete={handleProdukDelete} formatCurrency={formatCurrency} />}

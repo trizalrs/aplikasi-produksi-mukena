@@ -61,7 +61,7 @@
   }
 }
 
-/* -- Aturan untuk ukuran struk -- */
+/* -- Aturan untuk ukuran struk (tidak berubah) -- */
 .struk-80mm {
     width: 80mm;
 }
@@ -77,7 +77,7 @@
     padding: 0 2mm;
 }
 
-/* -- Aturan untuk meluruskan struk -- */
+/* -- Aturan untuk meluruskan struk (tidak berubah) -- */
 @media print {
   .print-only .flex.justify-between {
     display: grid;
@@ -95,13 +95,3 @@
     padding-left: 0;
   }
 }
-
-/* --- ATURAN BARU UNTUK RAWBT --- */
-@page {
-  size: auto;
-  margin: 0;
-}
-
-/* Aturan spesifik agar ukuran pas dengan pilihan */
-.struk-80mm { width: 80mm; }
-.struk-58mm { width: 58mm; }
