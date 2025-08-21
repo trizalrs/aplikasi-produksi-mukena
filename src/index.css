@@ -11,45 +11,43 @@
     font-family: 'Roboto Mono', monospace;
 }
 
-/* --- ATURAN CETAK DIPERBARUI AGAR KOMPATIBEL DENGAN MOBILE --- */
+/* --- ATURAN CETAK BARU YANG LEBIH KUAT --- */
 @media print {
-  /* Sembunyikan semua yang tidak perlu dicetak (header, nav, dll) */
-  .no-print {
-    display: none !important;
-  }
-  
-  /* -- DIHAPUS: Aturan lama yang terlalu agresif --
-  body > * {
-    visibility: hidden;
-  }
-  
-  .printable-area, .printable-area * {
-    visibility: visible;
-  }
-  
-  .print-only, .print-only * {
-    visibility: visible;
-  }
-  */
+    body * {
+        visibility: hidden; /* Pertama, sembunyikan absolut SEMUANYA */
+    }
+    
+    /* Kedua, tampilkan HANYA area cetak dan semua elemen di dalamnya */
+    .print-only, .print-only * {
+        visibility: visible;
+    }
+    .printable-area, .printable-area * {
+        visibility: visible;
+    }
 
-  /* -- BARU: Aturan yang lebih aman -- */
-  /* Sembunyikan aplikasi utama secara spesifik */
-  .main-app {
-    display: none !important;
-  }
+    /* Ketiga, posisikan area cetak ke pojok kiri atas halaman */
+    .print-only, .printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%; /* Untuk laporan */
+    }
+    
+    /* Aturan tambahan untuk struk */
+    .page-break-after {
+        page-break-after: always;
+    }
+}
 
-  /* Pastikan area cetak terlihat dan berada di posisi yang benar */
-  .print-only {
-    display: block !important;
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
-  .printable-area {
-    display: block !important;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+/* -- CLASS HELPER UNTUK SCROLLBAR HORIZONTAL -- */
+@layer components {
+  .horizontal-scrollbar {
+    @apply overflow-x-auto;
+    /* Menyembunyikan scrollbar di Firefox */
+    scrollbar-width: none;
+    /* Menyembunyikan scrollbar di Chrome, Safari, dan Opera */
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 }

@@ -117,35 +117,11 @@ function App() {
     const handleCetakSlipMassal = () => { window.print(); setDataUntukSlipGajiMassal(null); setIsSuksesGajianModalOpen(false); };
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
-    
     const getAllData = () => ({ pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian, authData });
     const restoreAllData = (restoredData) => { if (restoredData && Array.isArray(restoredData.pegawai) && Array.isArray(restoredData.produk)) { setPegawai(restoredData.pegawai || []); setProduk(restoredData.produk || []); setTransaksi(restoredData.transaksi || []); setKasbon(restoredData.kasbon || []); setPembayaranKasbon(restoredData.pembayaranKasbon || []); setRiwayatGajian(restoredData.riwayatGajian || []); if (restoredData.authData) { localStorage.setItem('authData', JSON.stringify(restoredData.authData)); setAuthData(restoredData.authData); } showNotification("Data berhasil dipulihkan!"); setTimeout(() => window.location.reload(), 1000); } else { throw new Error("Format file backup tidak valid."); } };
-    
     const handleBackupLokal = () => { const dataToBackup = getAllData(); const jsonString = JSON.stringify(dataToBackup, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); const date = new Date().toISOString().slice(0, 10); link.download = `backup-lokal-produksi-mukena-${date}.json`; link.href = url; link.click(); URL.revokeObjectURL(url); showNotification("Backup data lokal berhasil diunduh!"); };
     const handleRestoreLokal = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const restoredData = JSON.parse(event.target.result); handleKonfirmasi("Pulihkan Data Lokal?", "PERINGATAN: Ini akan menimpa semua data yang ada di perangkat ini. Lanjutkan?", () => { restoreAllData(restoredData); resetKonfirmasi(); }); } catch (error) { showNotification(`Gagal memulihkan data: ${error.message}`, "error"); } finally { e.target.value = null; } }; reader.readAsText(file); };
-
-    const handleAppLogout = () => {
-        const isDriveConnected = driveRef.current?.isConnected;
-        const message = isDriveConnected 
-            ? 'Data terbaru akan di-backup ke Google Drive sebelum logout. Lanjutkan?'
-            : 'Apakah Anda yakin ingin logout?';
-
-        handleKonfirmasi('Logout', message, () => {
-            resetKonfirmasi();
-            if (isDriveConnected) {
-                driveRef.current.backup()
-                    .then(() => {
-                        showNotification('Backup berhasil! Anda akan logout...', 'success');
-                        setTimeout(() => logout(), 2000);
-                    })
-                    .catch(err => {
-                        showNotification('Backup gagal, logout dibatalkan. Silakan coba lagi.', 'error');
-                    });
-            } else {
-                logout();
-            }
-        });
-    };
+    const handleAppLogout = () => { const isDriveConnected = driveRef.current?.isConnected; const message = isDriveConnected ? 'Data terbaru akan di-backup ke Google Drive sebelum logout. Lanjutkan?' : 'Apakah Anda yakin ingin logout?'; handleKonfirmasi('Logout', message, () => { resetKonfirmasi(); if (isDriveConnected) { driveRef.current.backup().then(() => { showNotification('Backup berhasil! Anda akan logout...', 'success'); setTimeout(() => logout(), 2000); }).catch(err => { showNotification('Backup gagal, logout dibatalkan. Silakan coba lagi.', 'error'); }); } else { logout(); } }); };
 
     if (!isAuthenticated) {
         return <LoginPage authData={authData} onSetup={setup} onLogin={login} />;
@@ -165,17 +141,9 @@ function App() {
                         <h1 className="text-xl md:text-2xl font-bold text-gray-800 self-start md:self-center">
                             Aplikasi Produksi Mukena
                         </h1>
-                        
                         <div className="w-full md:w-auto horizontal-scrollbar">
                             <div className="flex items-center whitespace-nowrap gap-2">
-                                <GoogleDriveSync
-                                    ref={driveRef}
-                                    getAllData={getAllData}
-                                    restoreAllData={restoreAllData}
-                                    showNotification={showNotification}
-                                    handleKonfirmasi={handleKonfirmasi}
-                                    resetKonfirmasi={resetKonfirmasi}
-                                />
+                                <GoogleDriveSync ref={driveRef} getAllData={getAllData} restoreAllData={restoreAllData} showNotification={showNotification} handleKonfirmasi={handleKonfirmasi} resetKonfirmasi={resetKonfirmasi} />
                                 <div className="flex items-center space-x-2 flex-shrink-0">
                                     <label className="text-sm font-medium text-gray-600">Ukuran Struk:</label>
                                     <select value={paperSize} onChange={(e) => setPaperSize(e.target.value)} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
