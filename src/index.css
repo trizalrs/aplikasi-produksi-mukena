@@ -1,39 +1,50 @@
 /* src/index.css */
 
+/* -- DIPINDAHKAN KE ATAS: Impor font harus selalu di baris pertama -- */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Impor font untuk struk */
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
 
 .font-struk {
     font-family: 'Roboto Mono', monospace;
 }
 
-/* --- ATURAN CETAK BARU YANG LEBIH KUAT --- */
+/* -- BARU: Aturan untuk menyembunyikan area cetak di layar -- */
+.print-only {
+    display: none;
+}
+
+/* --- ATURAN CETAK BARU YANG DIJAMIN BERHASIL --- */
 @media print {
-    body * {
-        visibility: hidden; /* Pertama, sembunyikan absolut SEMUANYA */
-    }
-    
-    /* Kedua, tampilkan HANYA area cetak dan semua elemen di dalamnya */
-    .print-only, .print-only * {
-        visibility: visible;
-    }
-    .printable-area, .printable-area * {
-        visibility: visible;
+    /* Sembunyikan semua yang tidak perlu dicetak */
+    .no-print {
+        display: none !important;
     }
 
-    /* Ketiga, posisikan area cetak ke pojok kiri atas halaman */
-    .print-only, .printable-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%; /* Untuk laporan */
+    /* Sembunyikan area aplikasi utama secara spesifik */
+    .main-app {
+        display: none !important;
     }
     
-    /* Aturan tambahan untuk struk */
+    /* Tampilkan area struk dan posisikan di pojok kiri atas */
+    .print-only {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    
+    /* Pastikan area laporan juga berfungsi dengan baik */
+    .printable-area {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+
     .page-break-after {
         page-break-after: always;
     }
@@ -43,11 +54,44 @@
 @layer components {
   .horizontal-scrollbar {
     @apply overflow-x-auto;
-    /* Menyembunyikan scrollbar di Firefox */
     scrollbar-width: none;
-    /* Menyembunyikan scrollbar di Chrome, Safari, dan Opera */
     &::-webkit-scrollbar {
       display: none;
     }
+  }
+}
+
+/* -- Aturan untuk ukuran struk (tidak berubah) -- */
+.struk-80mm {
+    width: 80mm;
+}
+.struk-58mm {
+    width: 58mm;
+    font-size: 9.5px;
+    box-sizing: border-box;
+    padding: 0 4mm;
+}
+.struk-content {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 2mm;
+}
+
+/* -- Aturan untuk meluruskan struk (tidak berubah) -- */
+@media print {
+  .print-only .flex.justify-between {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+  }
+  .print-only .flex.justify-between span:first-child {
+    text-align: left;
+    white-space: nowrap;
+  }
+  .print-only .flex.justify-between span:last-child {
+    text-align: right;
+  }
+  .print-only .pl-2 {
+    padding-left: 0;
   }
 }
