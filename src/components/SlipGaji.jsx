@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from '../assets/logo.jpg';
+import logo from '../assets/logo.png';
 
 function SlipGaji({ data, formatCurrency, formatDate, paperSize }) {
     if (!data) return null;
@@ -9,9 +9,9 @@ function SlipGaji({ data, formatCurrency, formatDate, paperSize }) {
         <div id="slip-gaji-to-print" className={`print-only font-struk text-xs text-black bg-white page-break-after struk-${paperSize}`}>
             <div className="struk-content">
                 <div className="text-center mb-2">
-                    <img src={logo} alt="Logo Perusahaan" className="mx-auto mb-2" style={{ maxWidth: '60px' }} />
+                    <img src={logo} alt="Logo Perusahaan" className="mx-auto mb-2" style={{ maxWidth: '110px' }} />
                     <h2 className="font-bold text-sm">SLIP GAJI PEGAWAI</h2>
-                    <p>PT HR Moslem</p>
+                    <p className="font-bold text-sm">PT HR Moslem</p>
                 </div>
                 <hr className="border-t border-dashed border-black my-1" />
                 <div className="flex justify-between"><span>Tanggal Cetak:</span><span>{formatDate(tanggalProses)}</span></div>

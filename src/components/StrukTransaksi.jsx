@@ -1,7 +1,7 @@
 // src/components/StrukTransaksi.jsx
 
 import React from 'react';
-import logo from '../assets/logo.jpg';
+import logo from '../assets/logo.png';
 
 function StrukTransaksi({ transaksi, formatCurrency, formatDate, paperSize }) {
     if (!transaksi) return null;
@@ -10,9 +10,9 @@ function StrukTransaksi({ transaksi, formatCurrency, formatDate, paperSize }) {
         <div id="struk-transaksi-to-print" className={`print-only font-struk text-xs text-black bg-white struk-${paperSize}`}>
             <div className="struk-content">
                 <div className="text-center mb-2">
-                    <img src={logo} alt="Logo Perusahaan" className="mx-auto mb-2" style={{ maxWidth: '60px' }} />
+                    <img src={logo} alt="Logo Perusahaan" className="mx-auto mb-2" style={{ maxWidth: '110px' }} />
                     <h2 className="font-bold text-sm">BUKTI SETOR PRODUKSI</h2>
-                    <p>PT HR Moslem</p>
+                    <p className="font-bold text-sm">PT HR Moslem</p>
                 </div>
                 <hr className="border-t border-dashed border-black my-1" />
                 <div className="flex justify-between"><span>Tanggal:</span><span>{formatDate(transaksi.tanggal)}</span></div>
