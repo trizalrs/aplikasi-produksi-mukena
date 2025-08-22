@@ -62,6 +62,7 @@
     width: 100%;
     box-sizing: border-box;
     padding: 0 2mm;
+    padding-bottom: 10px;
 }
 
 /* -- Aturan untuk meluruskan struk (tidak berubah) -- */
