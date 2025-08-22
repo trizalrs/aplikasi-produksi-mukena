@@ -1,18 +1,23 @@
-import React from 'react';
-import { PrinterIcon } from './Icons';
+// src/components/ModalSuksesTransaksi.jsx
 
-function ModalSuksesTransaksi({ isOpen, closeModal, setDataUntukStruk }) {
+import React from 'react';
+import { CameraIcon } from './Icons';
+
+function ModalSuksesTransaksi({ isOpen, closeModal, setDataUntukStruk, handleCetakGambar, dataTransaksi }) {
     if (!isOpen) return null;
 
     const handlePrint = () => {
-        window.print();
-        closeModal();
-        setDataUntukStruk(null); // Membersihkan setelah mencetak
+        if (dataTransaksi) {
+            // Panggil fungsi handleCetakGambar dari App.jsx dengan tipe 'transaksi' dan ID-nya
+            handleCetakGambar('transaksi', dataTransaksi.id);
+        }
+        // Tutup modal sukses INI, agar modal pratinjau bisa muncul
+        closeModal(); 
     };
 
     const handleClose = () => {
         closeModal();
-        setDataUntukStruk(null); // Membersihkan jika tidak jadi cetak
+        setDataUntukStruk(null); // Bersihkan data jika ditutup
     };
 
     return (
@@ -30,7 +35,7 @@ function ModalSuksesTransaksi({ isOpen, closeModal, setDataUntukStruk }) {
                         Tutup
                     </button>
                     <button type="button" onClick={handlePrint} className="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">
-                        <PrinterIcon /> Cetak Struk
+                        <CameraIcon /> Cetak Struk
                     </button>
                 </div>
             </div>

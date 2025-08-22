@@ -32,7 +32,7 @@ import ModalSuksesKasbon from './components/ModalSuksesKasbon';
 import StrukKasbon from './components/StrukKasbon';
 import SlipGaji from './components/SlipGaji';
 import ModalSuksesGajian from './components/ModalSuksesGajian';
-import ModalPrintPreview from './components/ModalPrintPreview'; // <-- BARU: Impor Modal Pratinjau
+import ModalPrintPreview from './components/ModalPrintPreview';
 
 const getInitialState = (key, defaultValue = []) => {
     try {
@@ -43,9 +43,9 @@ const getInitialState = (key, defaultValue = []) => {
 };
 
 function App() {
-    // ... (Semua state Anda yang sudah ada) ...
+    // ... State tidak ada yang berubah ...
     const { isAuthenticated, authData, setup, login, logout, setAuthData } = useAuth();
-    const driveRef = useRef();
+    const driveRef = useRef(null);
     const [activeMenu, setActiveMenu] = useState('dashboard');
     const [pegawai, setPegawai] = useState(() => getInitialState('dataPegawai'));
     const [produk, setProduk] = useState(() => getInitialState('dataProduk'));
@@ -77,12 +77,10 @@ function App() {
     const [isSuksesGajianModalOpen, setIsSuksesGajianModalOpen] = useState(false);
     const [dataUntukSlipGaji, setDataUntukSlipGaji] = useState(null);
     const [dataUntukSlipGajiMassal, setDataUntukSlipGajiMassal] = useState(null);
-    
-    // --- BARU: State untuk mengelola modal pratinjau dan datanya ---
     const [previewModalData, setPreviewModalData] = useState({ isOpen: false, imageData: null });
     const [printTrigger, setPrintTrigger] = useState({ type: null, id: null });
 
-    // --- BARU: useEffect untuk menangani konversi HTML ke Gambar ---
+    // --- PERBAIKAN FINAL ADA DI SINI ---
     useEffect(() => {
         if (printTrigger.type && printTrigger.id) {
             setTimeout(() => {
@@ -90,22 +88,29 @@ function App() {
                 const input = document.getElementById(elementId);
                 
                 if (input) {
-                    html2canvas(input, { scale: 3, useCORS: true, backgroundColor: '#ffffff' })
-                        .then((canvas) => {
-                            const imgData = canvas.toDataURL('image/png');
-                            setPreviewModalData({ isOpen: true, imageData: imgData });
-                        });
+                    // Ambil ukuran sebenarnya dari elemen menggunakan scrollHeight
+                    const elementWidth = input.scrollWidth;
+                    const elementHeight = input.scrollHeight;
+
+                    html2canvas(input, { 
+                        scale: 3, 
+                        useCORS: true, 
+                        backgroundColor: '#ffffff',
+                        // Beritahu html2canvas ukuran yang benar berdasarkan total konten
+                        width: elementWidth,
+                        height: elementHeight,
+                        windowWidth: elementWidth,
+                        windowHeight: elementHeight
+                    }).then((canvas) => {
+                        const imgData = canvas.toDataURL('image/png');
+                        setPreviewModalData({ isOpen: true, imageData: imgData });
+                    });
                 }
-                // Reset pemicu dan data sementara
                 setPrintTrigger({ type: null, id: null });
-                setDataUntukSlipGaji(null);
-                setDataUntukStrukKasbon(null);
-                setDataUntukStruk(null);
             }, 150);
         }
     }, [printTrigger]);
 
-    // ... (useEffect untuk localStorage biarkan seperti semula) ...
     useEffect(() => { localStorage.setItem('paperSize', paperSize); }, [paperSize]);
     useEffect(() => { localStorage.setItem('dataPegawai', JSON.stringify(pegawai)); }, [pegawai]);
     useEffect(() => { localStorage.setItem('dataProduk', JSON.stringify(produk)); }, [produk]);
@@ -114,38 +119,35 @@ function App() {
     useEffect(() => { localStorage.setItem('pembayaranKasbon', JSON.stringify(pembayaranKasbon)); }, [pembayaranKasbon]);
     useEffect(() => { localStorage.setItem('riwayatGajian', JSON.stringify(riwayatGajian)); }, [riwayatGajian]);
 
-    // ... (Fungsi helper tidak berubah) ...
     const showNotification = (message, type = 'success') => { setNotification({ show: true, message, type }); setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000); };
     const formatCurrency = (number) => { if (isNaN(number)) return "Rp 0"; return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number); };
     const formatDate = (dateString) => { if (!dateString) return ''; const options = { year: 'numeric', month: 'long', day: 'numeric' }; return new Date(dateString).toLocaleDateString('id-ID', options); };
     const handleKonfirmasi = (title, message, onConfirm) => { setKonfirmasi({ isOpen: true, title, message, onConfirm }); };
     const resetKonfirmasi = () => { setKonfirmasi({ isOpen: false, title: '', message: '', onConfirm: () => {} }); };
     
-    // --- BARU: Fungsi untuk Share Gambar ---
     const handleShareImage = async () => {
         if (!previewModalData.imageData || !navigator.share) {
             showNotification("Fitur share tidak didukung di browser ini.", "error");
             return;
         }
-
         try {
-            // Ubah data URL (base64) menjadi File object
             const response = await fetch(previewModalData.imageData);
             const blob = await response.blob();
             const file = new File([blob], 'struk.png', { type: 'image/png' });
-
-            await navigator.share({
-                title: 'Struk',
-                text: 'Berikut adalah struk bukti.',
-                files: [file],
-            });
+            await navigator.share({ title: 'Struk', text: 'Berikut adalah struk bukti.', files: [file] });
         } catch (error) {
-            console.error('Gagal share:', error);
-            showNotification("Gagal membagikan gambar.", "error");
+            if (error.name !== 'AbortError') { showNotification("Gagal membagikan gambar.", "error"); }
         }
     };
     
-    // ... (semua fungsi handle CRUD biarkan seperti semula) ...
+    const handleClosePreview = () => {
+        setPreviewModalData({ isOpen: false, imageData: null });
+        setDataUntukSlipGaji(null);
+        setDataUntukStrukKasbon(null);
+        setDataUntukStruk(null);
+        setDataUntukSlipGajiMassal(null);
+    };
+    
     const handlePegawaiInputChange = (e) => setFormPegawaiData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handlePegawaiSubmit = (e) => { e.preventDefault(); if (!formPegawaiData.nama || !formPegawaiData.kontak) { showNotification("Nama dan Kontak wajib diisi!", "error"); return; } if (editingPegawai) { setPegawai(pegawai.map(p => p.id === editingPegawai.id ? { ...p, ...formPegawaiData } : p)); showNotification("Data pegawai diperbarui!"); } else { setPegawai([...pegawai, { id: Date.now(), ...formPegawaiData }]); showNotification("Pegawai baru ditambahkan!"); } closePegawaiModal(); };
     const openPegawaiModal = (p = null) => { setEditingPegawai(p); setFormPegawaiData(p ? { nama: p.nama, alamat: p.alamat, kontak: p.kontak, status: p.status } : { nama: '', alamat: '', kontak: '', status: 'Aktif' }); setIsPegawaiModalOpen(true); };
@@ -170,6 +172,7 @@ function App() {
     const handleKasbonCancel = (kasbonId) => { handleKonfirmasi("Batalkan Kasbon?", "Tindakan ini akan membatalkan kasbon. Kasbon yang sudah dibatalkan tidak akan dihitung dalam penggajian. Yakin?", () => { setKasbon(prevKasbon => prevKasbon.map(k => k.id === kasbonId ? { ...k, status: 'dibatalkan' } : k)); showNotification("Data kasbon berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const handleTransaksiSubmit = (formData) => { let newTransaksiData; if (editingTransaksi) { const updatedTransaksi = { ...editingTransaksi, ...formData }; setTransaksi(transaksi.map(t => t.id === editingTransaksi.id ? updatedTransaksi : t)); newTransaksiData = updatedTransaksi; showNotification("Transaksi berhasil diperbarui!"); } else { newTransaksiData = { id: Date.now(), ...formData, sudahDibayar: false }; setTransaksi(prev => [...prev, newTransaksiData]); showNotification("Transaksi baru berhasil disimpan!"); } setDataUntukStruk(newTransaksiData); closeTransaksiModal(); setIsSuksesModalOpen(true); };
     const handleKasbonSubmit = (formData) => { let newKasbonData; if (editingKasbon) { const updatedKasbon = { ...editingKasbon, ...formData }; setKasbon(kasbon.map(k => k.id === editingKasbon.id ? updatedKasbon : k)); newKasbonData = updatedKasbon; showNotification("Data kasbon berhasil diperbarui!"); } else { newKasbonData = { id: Date.now(), ...formData, status: 'aktif' }; setKasbon(prev => [...prev, newKasbonData]); showNotification("Kasbon baru berhasil ditambahkan!"); } setDataUntukStrukKasbon(newKasbonData); closeKasbonModal(); setIsSuksesKasbonModalOpen(true); };
+    
     const handleCetakGambar = (type, id) => {
         if (type === 'slip') {
             const data = riwayatGajian.find(r => r.id === id);
@@ -180,9 +183,11 @@ function App() {
         } else if (type === 'transaksi') {
             const data = transaksi.find(t => t.id === id);
             if(data) { setDataUntukStruk(data); setPrintTrigger({ type: 'struk-transaksi', id }); }
+        } else if (type === 'gaji-massal') {
+            setPrintTrigger({ type: 'slip-gaji-massal', id });
         }
     };
-    const handleCetakSlipMassal = () => { window.print(); setDataUntukSlipGajiMassal(null); setIsSuksesGajianModalOpen(false); };
+    
     const handleProsesGajian = () => { const newRiwayatGajian = []; const newPembayaranKasbon = []; const today = new Date().toISOString().slice(0, 10); const transactionIdsToUpdate = new Set(); reportData.forEach(item => { if (item.totalUpah <= 0 && item.bayarKasbon <= 0) return; const gajianId = Date.now() + item.pegawaiId; const relatedTransactionIds = transaksi.filter(t => { const tDate = new Date(t.tanggal); const startDate = new Date(reportFilters.startDate); const endDate = new Date(reportFilters.endDate); endDate.setHours(23, 59, 59, 999); return t.pegawaiId == item.pegawaiId && !t.sudahDibayar && tDate >= startDate && tDate <= endDate; }).map(t => t.id); newRiwayatGajian.push({ id: gajianId, ...item, periodeAwal: reportFilters.startDate, periodeAkhir: reportFilters.endDate, tanggalProses: today, transaksiIds: relatedTransactionIds }); if (item.bayarKasbon > 0) { newPembayaranKasbon.push({ id: Date.now() + item.pegawaiId + 1, pegawaiId: item.pegawaiId, pegawaiNama: item.pegawaiNama, tanggal: today, jumlah: item.bayarKasbon, keterangan: `Pembayaran dari gaji periode ${reportFilters.startDate} - ${reportFilters.endDate}`, gajianId: gajianId }); } relatedTransactionIds.forEach(id => transactionIdsToUpdate.add(id)); }); if (newRiwayatGajian.length === 0) { showNotification("Tidak ada data untuk diproses.", "warning"); return; } setRiwayatGajian(prev => [...prev, ...newRiwayatGajian]); setPembayaranKasbon(prev => [...prev, ...newPembayaranKasbon]); setTransaksi(prevTransaksi => prevTransaksi.map(t => transactionIdsToUpdate.has(t.id) ? { ...t, sudahDibayar: true } : t)); setDataUntukSlipGajiMassal(newRiwayatGajian); setIsSuksesGajianModalOpen(true); setShowReport(false); };
     const handleRiwayatGajianDelete = (id) => { handleKonfirmasi("Batalkan Gajian?", "Ini akan mengembalikan status transaksi dan pembayaran kasbon terkait. Yakin?", () => { const riwayatToDelete = riwayatGajian.find(r => r.id === id); if (!riwayatToDelete) return; const transactionIdsToRevert = riwayatToDelete.transaksiIds || []; setTransaksi(prev => prev.map(t => transactionIdsToRevert.includes(t.id) ? { ...t, sudahDibayar: false } : t)); setPembayaranKasbon(prev => prev.filter(p => p.gajianId !== id)); setRiwayatGajian(prev => prev.filter(r => r.id !== id)); showNotification("Riwayat gajian berhasil dibatalkan.", "warning"); resetKonfirmasi(); }); };
     const getAllData = () => ({ pegawai, produk, transaksi, kasbon, pembayaranKasbon, riwayatGajian, authData });
@@ -197,18 +202,28 @@ function App() {
 
     return (
         <>
-            <ModalPrintPreview 
-                imageData={previewModalData.imageData}
-                isOpen={previewModalData.isOpen}
-                onShare={handleShareImage}
-                onClose={() => setPreviewModalData({ isOpen: false, imageData: null })}
-            />
             <div className="main-app">
+                {previewModalData.isOpen && (
+                    <ModalPrintPreview
+                        imageData={previewModalData.imageData}
+                        onShare={handleShareImage}
+                        onClose={handleClosePreview}
+                    />
+                )}
+                
                 {notification.show && ( <div className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white z-50 ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'warning' ? 'bg-yellow-500' : 'bg-red-500'}`}> {notification.message} </div> )}
+                
                 <ModalSuksesTransaksi isOpen={isSuksesModalOpen} closeModal={() => setIsSuksesModalOpen(false)} dataTransaksi={dataUntukStruk} handleCetakGambar={handleCetakGambar} setDataUntukStruk={setDataUntukStruk} />
                 <ModalSuksesKasbon isOpen={isSuksesKasbonModalOpen} closeModal={() => setIsSuksesKasbonModalOpen(false)} dataKasbon={dataUntukStrukKasbon} handleCetakGambar={handleCetakGambar} setDataUntukStrukKasbon={setDataUntukStrukKasbon} />
+                
+                <ModalSuksesGajian 
+                    isOpen={isSuksesGajianModalOpen} 
+                    closeModal={() => { setIsSuksesGajianModalOpen(false); setDataUntukSlipGajiMassal(null); }} 
+                    dataGajianBaru={dataUntukSlipGajiMassal}
+                    handleCetakGambar={handleCetakGambar}
+                />
+
                 <ModalKonfirmasi isOpen={konfirmasi.isOpen} title={konfirmasi.title} message={konfirmasi.message} onConfirm={konfirmasi.onConfirm} onCancel={resetKonfirmasi} />
-                <ModalSuksesGajian isOpen={isSuksesGajianModalOpen} closeModal={() => { setIsSuksesGajianModalOpen(false); setDataUntukSlipGajiMassal(null); }} handlePrint={handleCetakSlipMassal} />
                 
                 <header className="bg-white shadow-md p-4 sticky top-0 z-40">
                     <div className="container mx-auto flex flex-col md:flex-row md:justify-between md:items-center gap-4">
@@ -264,7 +279,9 @@ function App() {
                 <StrukTransaksi transaksi={dataUntukStruk} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} />
                 <StrukKasbon kasbon={dataUntukStrukKasbon} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} />
                 <SlipGaji data={dataUntukSlipGaji} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} />
-                {dataUntukSlipGajiMassal && dataUntukSlipGajiMassal.map(slip => ( <SlipGaji key={slip.id} data={slip} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> ))}
+                <div id="slip-gaji-massal-to-print">
+                    {dataUntukSlipGajiMassal && dataUntukSlipGajiMassal.map(slip => ( <SlipGaji key={slip.id} data={slip} formatCurrency={formatCurrency} formatDate={formatDate} paperSize={paperSize} /> ))}
+                </div>
             </div>
         </>
     );

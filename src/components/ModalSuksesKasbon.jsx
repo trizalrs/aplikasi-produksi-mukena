@@ -1,13 +1,18 @@
-import React from 'react';
-import { PrinterIcon } from './Icons';
+// src/components/ModalSuksesKasbon.jsx
 
-function ModalSuksesKasbon({ isOpen, closeModal, setDataUntukStrukKasbon }) {
+import React from 'react';
+import { CameraIcon } from './Icons';
+
+function ModalSuksesKasbon({ isOpen, closeModal, setDataUntukStrukKasbon, handleCetakGambar, dataKasbon }) {
     if (!isOpen) return null;
 
     const handlePrint = () => {
-        window.print();
+        if (dataKasbon) {
+            // Panggil fungsi handleCetakGambar dari App.jsx dengan tipe 'kasbon' dan ID-nya
+            handleCetakGambar('kasbon', dataKasbon.id);
+        }
+        // Tutup modal sukses INI, agar modal pratinjau bisa muncul
         closeModal();
-        setDataUntukStrukKasbon(null);
     };
 
     const handleClose = () => {
@@ -30,7 +35,7 @@ function ModalSuksesKasbon({ isOpen, closeModal, setDataUntukStrukKasbon }) {
                         Tutup
                     </button>
                     <button type="button" onClick={handlePrint} className="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">
-                        <PrinterIcon /> Cetak Struk
+                        <CameraIcon /> Cetak Struk
                     </button>
                 </div>
             </div>
