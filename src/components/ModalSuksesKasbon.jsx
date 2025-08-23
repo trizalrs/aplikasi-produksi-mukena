@@ -1,17 +1,14 @@
-// src/components/ModalSuksesKasbon.jsx
-
 import React from 'react';
 import { CameraIcon } from './Icons';
 
-function ModalSuksesKasbon({ isOpen, closeModal, setDataUntukStrukKasbon, handleCetakGambar, dataKasbon }) {
+function ModalSuksesKasbon({ isOpen, closeModal, setDataUntukStrukKasbon, handlePrintRequest, dataKasbon }) {
     if (!isOpen) return null;
 
     const handlePrint = () => {
         if (dataKasbon) {
-            // Panggil fungsi handleCetakGambar dari App.jsx dengan tipe 'kasbon' dan ID-nya
-            handleCetakGambar('kasbon', dataKasbon.id);
+            // Panggil fungsi universal handlePrintRequest
+            handlePrintRequest('kasbon', dataKasbon);
         }
-        // Tutup modal sukses INI, agar modal pratinjau bisa muncul
         closeModal();
     };
 

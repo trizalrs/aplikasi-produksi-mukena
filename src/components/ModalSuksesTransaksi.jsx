@@ -1,23 +1,20 @@
-// src/components/ModalSuksesTransaksi.jsx
-
 import React from 'react';
 import { CameraIcon } from './Icons';
 
-function ModalSuksesTransaksi({ isOpen, closeModal, setDataUntukStruk, handleCetakGambar, dataTransaksi }) {
+function ModalSuksesTransaksi({ isOpen, closeModal, setDataUntukStruk, handlePrintRequest, dataTransaksi }) {
     if (!isOpen) return null;
 
     const handlePrint = () => {
         if (dataTransaksi) {
-            // Panggil fungsi handleCetakGambar dari App.jsx dengan tipe 'transaksi' dan ID-nya
-            handleCetakGambar('transaksi', dataTransaksi.id);
+            // Panggil fungsi universal handlePrintRequest
+            handlePrintRequest('transaksi', dataTransaksi);
         }
-        // Tutup modal sukses INI, agar modal pratinjau bisa muncul
-        closeModal(); 
+        closeModal();
     };
 
     const handleClose = () => {
         closeModal();
-        setDataUntukStruk(null); // Bersihkan data jika ditutup
+        setDataUntukStruk(null);
     };
 
     return (

@@ -3,12 +3,13 @@
 import React from 'react';
 import { CameraIcon } from './Icons';
 
-function ModalSuksesGajian({ isOpen, closeModal, dataGajianBaru, handleCetakGambar }) {
+// Ganti nama prop handleCetakGambar menjadi handlePrintRequest agar konsisten
+function ModalSuksesGajian({ isOpen, closeModal, dataGajianBaru, handlePrintRequest }) {
     if (!isOpen) return null;
 
-    const handleCetakClick = (gajianId) => {
-        // Panggil fungsi cetak gambar untuk satu slip spesifik
-        handleCetakGambar('slip', gajianId);
+    const handleCetakClick = (gajianData) => {
+        // Panggil fungsi universal handlePrintRequest dan kirim seluruh objek datanya
+        handlePrintRequest('slip', gajianData);
     };
 
     return (
@@ -24,7 +25,6 @@ function ModalSuksesGajian({ isOpen, closeModal, dataGajianBaru, handleCetakGamb
                     <p className="text-gray-600 mb-6">Silakan cetak slip untuk setiap pegawai di bawah ini.</p>
                 </div>
                 
-                {/* --- BAGIAN BARU: DAFTAR SLIP UNTUK DICETAK --- */}
                 <div className="space-y-2 max-h-60 overflow-y-auto border-t border-b py-4 my-4">
                     {(dataGajianBaru && dataGajianBaru.length > 0) ? (
                         dataGajianBaru.map(gajian => (
@@ -32,7 +32,8 @@ function ModalSuksesGajian({ isOpen, closeModal, dataGajianBaru, handleCetakGamb
                                 <span className="font-medium text-gray-700">{gajian.pegawaiNama}</span>
                                 <button
                                     type="button"
-                                    onClick={() => handleCetakClick(gajian.id)}
+                                    // --- PERUBAHAN UTAMA DI SINI ---
+                                    onClick={() => handleCetakClick(gajian)}
                                     className="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-lg text-sm"
                                     title={`Cetak slip untuk ${gajian.pegawaiNama}`}
                                 >
