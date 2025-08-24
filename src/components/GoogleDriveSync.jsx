@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { gapi } from 'gapi-script';
-import { XCircleIcon, UserIcon } from './Icons'; // Pastikan UserIcon diimpor
+import { XCircleIcon, UserIcon } from './Icons';
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile';
 const FILENAME = 'database-produksi-mukena.json';
@@ -13,6 +13,11 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
     const [token, setToken] = useState(null);
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // --- FUNGSI BARU: Mendeteksi apakah berjalan di dalam APK ---
+    const isInsideWebView = () => {
+        return window.Android && typeof window.Android.processPrintData === 'function';
+    };
 
     useEffect(() => {
         const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -24,14 +29,11 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
                 clientId: CLIENT_ID,
                 scope: SCOPES,
                 discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-            }).then(() => {
-                setIsGapiReady(true);
-            }).catch(err => console.error("GAPI Init Error:", err));
+            }).then(() => { setIsGapiReady(true); }).catch(err => console.error("GAPI Init Error:", err));
         }
         gapi.load('client:auth2', start);
     }, []);
 
-    // <-- FUNGSI DIPERBARUI: Disederhanakan, hanya mengambil nama, tidak ada gambar -->
     const fetchUserInfo = useCallback(async (accessToken) => {
         try {
             const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -39,7 +41,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
             });
             if (!res.ok) throw new Error('Gagal mengambil info user.');
             const userInfo = await res.json();
-            const userData = { name: userInfo.name }; // Hanya simpan nama
+            const userData = { name: userInfo.name };
             setUser(userData);
             localStorage.setItem('googleUser', JSON.stringify(userData));
         } catch (error) {
@@ -52,6 +54,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         }
     }, [showNotification]);
 
+    // --- PERUBAHAN UTAMA DI SINI ---
     const handleLogin = useGoogleLogin({
         onSuccess: (tokenResponse) => {
             setToken(tokenResponse);
@@ -59,6 +62,8 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
             fetchUserInfo(tokenResponse.access_token);
         },
         scope: SCOPES,
+        // Gunakan 'redirect' jika di dalam WebView, 'popup' jika di browser biasa
+        ux_mode: isInsideWebView() ? 'redirect' : 'popup',
         onError: (error) => showNotification(`Login Google Gagal`, 'error'),
     });
 
