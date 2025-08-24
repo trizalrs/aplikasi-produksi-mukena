@@ -13,7 +13,7 @@ function ModalProduk({ editingProduk, formProdukData, handleProdukNameChange, ha
                         {formProdukData.variantGroups.map((group) => (
                             <div key={group.id} className="p-4 bg-gray-50 rounded-lg border">
                                 <div className="flex justify-between items-center mb-4">
-                                    <input type="text" value={group.namaGrup} onChange={(e) => handleGroupChange(group.id, e)} placeholder="Nama Grup (Contoh: Anak)" className="text-lg font-semibold text-gray-700 bg-transparent border-b-2 border-gray-300 focus:border-indigo-500 focus:outline-none flex-grow" required />
+                                    <input type="text" value={group.namaGrup} onChange={(e) => handleGroupChange(group.id, e)} placeholder="Nama Grup (Contoh: Warna)" className="text-lg font-semibold text-gray-700 bg-transparent border-b-2 border-gray-300 focus:border-indigo-500 focus:outline-none flex-grow" required />
                                     {formProdukData.variantGroups.length > 1 && <button type="button" onClick={() => removeGroup(group.id)} className="ml-4 text-red-500 hover:text-red-700"><TrashIcon /></button>}
                                 </div>
                                 <div className="space-y-3">
