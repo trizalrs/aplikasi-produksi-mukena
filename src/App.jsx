@@ -1,5 +1,3 @@
-// src/App.jsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import useAuth from './useAuth';
 import LoginPage from './components/LoginPage';
@@ -43,7 +41,6 @@ const getInitialState = (key, defaultValue = []) => {
 };
 
 function App() {
-    // ... (State tidak ada yang berubah) ...
     const { isAuthenticated, authData, setup, login, logout, setAuthData } = useAuth();
     const driveRef = useRef(null);
     const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -121,7 +118,6 @@ function App() {
         if (window.Android && typeof window.Android.processPrintData === 'function') {
             const jsonData = JSON.stringify(data);
             window.Android.processPrintData(type, jsonData);
-            showNotification("Mengirim data ke printer...", "success");
         } else {
             if(type === 'transaksi') setDataUntukStruk(data);
             if(type === 'kasbon') setDataUntukStrukKasbon(data);
@@ -130,16 +126,28 @@ function App() {
         }
     };
     
-    const handleShareImage = async () => { /* Implementasi tidak berubah */ };
+    const handleShareImage = async () => {
+        if (!previewModalData.imageData || !navigator.share) {
+            showNotification("Fitur share tidak didukung di browser ini.", "error");
+            return;
+        }
+        try {
+            const response = await fetch(previewModalData.imageData);
+            const blob = await response.blob();
+            const file = new File([blob], 'struk.png', { type: 'image/png' });
+            await navigator.share({ title: 'Struk', text: 'Berikut adalah struk bukti.', files: [file] });
+        } catch (error) {
+            if (error.name !== 'AbortError') { showNotification("Gagal membagikan gambar.", "error"); }
+        }
+    };
+
     const handleClosePreview = () => {
         setPreviewModalData({ isOpen: false, imageData: null });
         setDataUntukSlipGaji(null);
         setDataUntukStrukKasbon(null);
         setDataUntukStruk(null);
-        setDataUntukSlipGajiMassal(null);
     };
     
-    // ... (Semua fungsi handle CRUD tidak berubah) ...
     const handlePegawaiInputChange = (e) => setFormPegawaiData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handlePegawaiSubmit = (e) => { e.preventDefault(); if (!formPegawaiData.nama || !formPegawaiData.kontak) { showNotification("Nama dan Kontak wajib diisi!", "error"); return; } if (editingPegawai) { setPegawai(pegawai.map(p => p.id === editingPegawai.id ? { ...p, ...formPegawaiData } : p)); showNotification("Data pegawai diperbarui!"); } else { setPegawai([...pegawai, { id: Date.now(), ...formPegawaiData }]); showNotification("Pegawai baru ditambahkan!"); } closePegawaiModal(); };
     const openPegawaiModal = (p = null) => { setEditingPegawai(p); setFormPegawaiData(p ? { nama: p.nama, alamat: p.alamat, kontak: p.kontak, status: p.status } : { nama: '', alamat: '', kontak: '', status: 'Aktif' }); setIsPegawaiModalOpen(true); };
