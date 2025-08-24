@@ -14,10 +14,8 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // --- FUNGSI BARU: Mendeteksi apakah berjalan di dalam APK ---
-    const isInsideWebView = () => {
-        return window.Android && typeof window.Android.processPrintData === 'function';
-    };
+    // Fungsi untuk mendeteksi apakah berjalan di dalam APK
+    const isInsideWebView = () => !!window.Android;
 
     useEffect(() => {
         const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -54,7 +52,6 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         }
     }, [showNotification]);
 
-    // --- PERUBAHAN UTAMA DI SINI ---
     const handleLogin = useGoogleLogin({
         onSuccess: (tokenResponse) => {
             setToken(tokenResponse);
@@ -63,7 +60,9 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         },
         scope: SCOPES,
         // Gunakan 'redirect' jika di dalam WebView, 'popup' jika di browser biasa
-        ux_mode: isInsideWebView() ? 'redirect' : 'popup',
+        ux_mode: isInsideWebView() ? 'redirect' : 'popup', 
+        // Tambahkan redirect_uri untuk memastikan Google tahu harus kembali ke mana
+        redirect_uri: "https://trizalrs.github.io/aplikasi-produksi-mukena/",
         onError: (error) => showNotification(`Login Google Gagal`, 'error'),
     });
 
