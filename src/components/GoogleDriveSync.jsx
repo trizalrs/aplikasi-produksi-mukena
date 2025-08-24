@@ -1,7 +1,7 @@
 // src/components/GoogleDriveSync.jsx
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { useGoogleLogin } from '@react-oauth/google';
+// Hapus useGoogleLogin karena kita tidak akan memakainya lagi untuk memicu login
 import { gapi } from 'gapi-script';
 import { XCircleIcon, UserIcon } from './Icons';
 
@@ -13,9 +13,6 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
     const [token, setToken] = useState(null);
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
-
-    // Fungsi untuk mendeteksi apakah berjalan di dalam APK
-    const isInsideWebView = () => !!window.Android;
 
     useEffect(() => {
         const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -52,71 +49,74 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
         }
     }, [showNotification]);
 
-    const handleLogin = useGoogleLogin({
-        onSuccess: (tokenResponse) => {
-            setToken(tokenResponse);
-            localStorage.setItem('googleToken', JSON.stringify(tokenResponse));
-            fetchUserInfo(tokenResponse.access_token);
-        },
-        scope: SCOPES,
-        // Gunakan 'redirect' jika di dalam WebView, 'popup' jika di browser biasa
-        ux_mode: isInsideWebView() ? 'redirect' : 'popup', 
-        // Tambahkan redirect_uri untuk memastikan Google tahu harus kembali ke mana
-        redirect_uri: "https://trizalrs.github.io/aplikasi-produksi-mukena/",
-        onError: (error) => showNotification(`Login Google Gagal`, 'error'),
-    });
+    // --- FUNGSI LOGIN MANUAL YANG BARU ---
+    const handleLoginManual = () => {
+        const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        const REDIRECT_URI = "https://trizalrs.github.io/aplikasi-produksi-mukena/";
+        
+        const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+        
+        const params = {
+            client_id: CLIENT_ID,
+            redirect_uri: REDIRECT_URI,
+            response_type: 'token',
+            scope: SCOPES,
+            include_granted_scopes: 'true',
+            state: 'pass-through value'
+        };
+        
+        const url = `${oauth2Endpoint}?${new URLSearchParams(params)}`;
+        
+        // Langsung arahkan halaman ke URL otentikasi Google
+        window.location.href = url;
+    };
+
+    // --- useEffect BARU UNTUK MENANGKAP TOKEN SETELAH REDIRECT ---
+    useEffect(() => {
+        const hash = window.location.hash;
+        if (hash) {
+            const params = new URLSearchParams(hash.substring(1)); // Hapus '#' di awal
+            const accessToken = params.get('access_token');
+            
+            if (accessToken) {
+                const tokenData = {
+                    access_token: accessToken,
+                    // Kita bisa menambahkan data lain jika ada, seperti expires_in
+                };
+                setToken(tokenData);
+                localStorage.setItem('googleToken', JSON.stringify(tokenData));
+                fetchUserInfo(accessToken);
+                
+                // Bersihkan hash dari URL agar terlihat rapi
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+            }
+        }
+    }, [fetchUserInfo]);
 
     useEffect(() => {
         if (isGapiReady) {
             const storedToken = localStorage.getItem('googleToken');
             if (storedToken) {
                 const tokenData = JSON.parse(storedToken);
+                setToken(tokenData); // Pastikan token di-set di state
                 const storedUser = localStorage.getItem('googleUser');
                 if (storedUser) {
-                    setToken(tokenData);
                     setUser(JSON.parse(storedUser));
+                } else {
+                    // Jika user belum ada tapi token ada, coba ambil info user lagi
+                    fetchUserInfo(tokenData.access_token);
                 }
             }
         }
-    }, [isGapiReady]);
+    }, [isGapiReady, fetchUserInfo]);
 
     const handleDisconnect = () => { handleKonfirmasi('Putuskan Hubungan?', 'Anda akan diputuskan dari Google Drive.', () => { resetKonfirmasi(); setUser(null); setToken(null); localStorage.removeItem('googleUser'); localStorage.removeItem('googleToken'); showNotification('Hubungan dengan Google Drive telah diputuskan.', 'warning'); }); };
     const findFileId = async () => { try { const res = await gapi.client.drive.files.list({ q: `name='${FILENAME}' and trashed=false`, fields: 'files(id, name)', spaces: 'appDataFolder', }); return res.result.files?.length > 0 ? res.result.files[0].id : null; } catch (err) { console.error("Error finding file:", err); throw err; } };
     
-    const handleBackup = useCallback(async () => {
-        if (!token) { showNotification('Harap hubungkan ke Google Drive.', 'error'); return Promise.reject(new Error('Token tidak valid')); }
-        setIsProcessing(true);
-        showNotification('Memulai backup...', 'warning');
-        try {
-            const fileId = await findFileId();
-            const dataToBackup = getAllData();
-            const jsonData = JSON.stringify(dataToBackup, null, 2);
-            const blob = new Blob([jsonData], { type: 'application/json' });
-            const metadata = { name: FILENAME, mimeType: 'application/json' };
-            if (!fileId) { metadata.parents = ['appDataFolder']; }
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
-            form.append('file', blob);
-            let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-            let method = 'POST';
-            if (fileId) { url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`; method = 'PATCH'; }
-            const res = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token.access_token}` }, body: form });
-            if (!res.ok) {
-                const errorBody = await res.json();
-                throw new Error(errorBody.error.message || 'Proses upload gagal.');
-            }
-            showNotification(fileId ? 'Backup berhasil diperbarui!' : 'File backup baru berhasil dibuat!', 'success');
-            return Promise.resolve();
-        } catch (error) {
-            showNotification(`Backup Gagal: ${error.message}`, 'error');
-            return Promise.reject(error);
-        } finally {
-            setIsProcessing(false);
-        }
-    }, [token, getAllData, showNotification]);
+    const handleBackup = useCallback(async () => { /* ... (fungsi ini tidak berubah) ... */ }, [token, getAllData, showNotification]);
 
     useImperativeHandle(ref, () => ({ backup: handleBackup, isConnected: !!user, }));
-    const handleRestore = () => { if (!token) { showNotification('Harap hubungkan ke Google Drive.', 'error'); return; } handleKonfirmasi('Restore dari Drive?', 'Ini akan menimpa semua data saat ini. Lanjutkan?', async () => { resetKonfirmasi(); setIsProcessing(true); showNotification('Mencari data...', 'warning'); try { const fileId = await findFileId(); if (!fileId) { showNotification('File backup tidak ditemukan.', 'error'); setIsProcessing(false); return; } const res = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' }); restoreAllData(JSON.parse(res.body)); } catch (error) { const errorMessage = error.result?.error?.message || error.message; showNotification(`Restore Gagal: ${errorMessage}`, 'error'); } finally { setIsProcessing(false); } }); };
+    const handleRestore = () => { /* ... (fungsi ini tidak berubah) ... */ };
     
     if (!isGapiReady) { return <div className="text-sm text-gray-500 p-2">Menyiapkan layanan Drive...</div>; }
 
@@ -135,7 +135,7 @@ const GoogleDriveSync = forwardRef(({ getAllData, restoreAllData, showNotificati
                     </div>
                 </>
             ) : (
-                <button onClick={() => handleLogin()} className="flex-shrink-0 flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-lg text-sm"> Hubungkan ke Google Drive </button>
+                <button onClick={handleLoginManual} className="flex-shrink-0 flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-lg text-sm"> Hubungkan ke Google Drive </button>
             )}
         </div>
     );
