@@ -18,7 +18,7 @@ import PageProduk from './components/PageProduk';
 import PageTransaksi from './components/PageTransaksi';
 import PageKasbon from './components/PageKasbon';
 import PagePenggajian from './components/PagePenggajian';
-import PageLaporan from './components/PageLaporan';
+import PageLaporan from './components/PageLaporan2';
 import ModalPegawai from './components/ModalPegawai';
 import ModalProduk from './components/ModalProduk';
 import ModalTransaksi from './components/ModalTransaksi';
