@@ -78,6 +78,7 @@ function App() {
     const [previewModalData, setPreviewModalData] = useState({ isOpen: false, imageData: null });
     const [printTrigger, setPrintTrigger] = useState({ type: null, data: null });
 
+// --- GANTI BLOK useEffect LAMA ANDA DENGAN YANG INI ---
     useEffect(() => {
         if (printTrigger.type && printTrigger.data) {
             setTimeout(() => {
@@ -86,16 +87,25 @@ function App() {
                     case 'transaksi': elementId = 'struk-transaksi-to-print'; break;
                     case 'kasbon': elementId = 'struk-kasbon-to-print'; break;
                     case 'slip': elementId = 'slip-gaji-to-print'; break;
-                    default: console.error("Tipe cetak tidak dikenal:", printTrigger.type); return;
+                    default: return;
                 }
                 const input = document.getElementById(elementId);
                 if (input) {
-                    html2canvas(input, { scale: 3, useCORS: true, backgroundColor: '#ffffff', width: input.scrollWidth, height: input.scrollHeight, windowWidth: input.scrollWidth, windowHeight: input.scrollHeight })
+                    html2canvas(input, { scale: 3, useCORS: true, backgroundColor: '#ffffff', width: input.scrollWidth, height: input.scrollHeight })
                         .then((canvas) => {
                             const imgData = canvas.toDataURL('image/png');
-                            setPreviewModalData({ isOpen: true, imageData: imgData });
+                            if (window.Android && typeof window.Android.printImage === 'function') {
+                                // Kirim base64 string ke Android
+                                window.Android.printImage(imgData);
+                            } else {
+                                // Fallback untuk browser biasa (buka di tab baru)
+                                const printWin = window.open('', '_blank');
+                                printWin.document.write(`<img src="${imgData}" style="width:100%;">`);
+                                printWin.document.close();
+                                printWin.focus();
+                            }
                         });
-                } else { console.error("Elemen untuk dicetak tidak ditemukan:", elementId); }
+                }
                 setPrintTrigger({ type: null, data: null });
             }, 150);
         }
