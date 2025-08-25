@@ -8,7 +8,7 @@ import html2canvas from 'html2canvas';
 import {
     UserIcon, CubeIcon, ClipboardListIcon, CashIcon, DocumentReportIcon, ChartPieIcon,
     PlusIcon, DownloadIcon, UploadIcon, EditIcon, TrashIcon, XCircleIcon,
-    ChevronDownIcon, SaveIcon, ArchiveIcon, DocumentChartBarIcon, PrinterIcon, CameraIcon
+    ChevronDownIcon, SaveIcon, ArchiveIcon, DocumentChartBarIcon, PrinterIcon, CameraIcon,  InformationCircleIcon
 } from './components/Icons';
 
 // Impor Halaman dan Komponen lainnya
@@ -31,6 +31,7 @@ import StrukKasbon from './components/StrukKasbon';
 import SlipGaji from './components/SlipGaji';
 import ModalSuksesGajian from './components/ModalSuksesGajian';
 import ModalPrintPreview from './components/ModalPrintPreview';
+import PageTentang from './components/PageTentang';
 
 const getInitialState = (key, defaultValue = []) => {
     try {
@@ -240,6 +241,7 @@ function App() {
                         <button onClick={() => setActiveMenu('kasbon')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'kasbon' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}> <CashIcon /> Kasbon </button>
                         <button onClick={() => setActiveMenu('penggajian')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'penggajian' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}> <ArchiveIcon /> Penggajian </button>
                         <button onClick={() => setActiveMenu('laporan')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'laporan' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}> <DocumentChartBarIcon /> Laporan </button>
+                        <button onClick={() => setActiveMenu('tentang')} className={`flex-shrink-0 flex items-center py-3 px-4 font-semibold text-sm transition-colors duration-300 ${activeMenu === 'tentang' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}><InformationCircleIcon /> Tentang </button>
                     </div>
                 </nav>
                 
@@ -251,6 +253,7 @@ function App() {
                     {activeMenu === 'kasbon' && <PageKasbon pegawai={pegawai} kasbon={kasbon} pembayaranKasbon={pembayaranKasbon} openModal={openKasbonModal} formatCurrency={formatCurrency} formatDate={formatDate} handleKasbonCancel={handleKasbonCancel} />}
                     {activeMenu === 'penggajian' && <PagePenggajian pegawai={pegawai} transaksi={transaksi} kasbon={kasbon} pembayaranKasbon={pembayaranKasbon} formatCurrency={formatCurrency} reportFilters={reportFilters} setReportFilters={setReportFilters} reportData={reportData} setReportData={setReportData} showReport={showReport} setShowReport={setShowReport} handleProsesGajian={handleProsesGajian} showNotification={showNotification} />}
                     {activeMenu === 'laporan' && <PageLaporan riwayatGajian={riwayatGajian} kasbon={kasbon} formatCurrency={formatCurrency} formatDate={formatDate} handleRiwayatGajianDelete={handleRiwayatGajianDelete} transaksi={transaksi} pegawai={pegawai} produk={produk} showNotification={showNotification} handlePrintRequest={handlePrintRequest} />}
+                    {activeMenu === 'tentang' && <PageTentang />} 
                 </main>
 
                 {isPegawaiModalOpen && <ModalPegawai editingPegawai={editingPegawai} formPegawaiData={formPegawaiData} handleInputChange={handlePegawaiInputChange} handleSubmit={handlePegawaiSubmit} closeModal={closePegawaiModal} />}
